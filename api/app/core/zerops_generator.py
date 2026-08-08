@@ -57,6 +57,16 @@ def build_zerops_yaml(topo: Topology) -> str:
 
         setups.append({"setup": svc.hostname, "build": build_block, "run": run_block})
 
+    if not setups:
+        # only managed services (db/cache/...) — they have no build/run block;
+        # they're declared in the project-import file instead.
+        return (
+            "# No runtime services in this topology — only managed services\n"
+            "# (databases, caches, etc.). Managed services have no zerops.yaml\n"
+            "# build/run block; they're declared in zerops-project-import.yml.\n"
+            "# Add an app service (or use Repo URL mode) to get build/run config.\n"
+            "zerops: []\n"
+        )
     return _dump({"zerops": setups})
 
 

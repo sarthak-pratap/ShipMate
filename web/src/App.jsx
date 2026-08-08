@@ -67,7 +67,8 @@ export default function App() {
       const data = await generate(payload);
       if (data.error) throw new Error(data.error);
       setResult(data);
-      setTab("zerops");
+      // if there are no runtime services, zerops.yaml is empty — show import instead
+      setTab(data.zerops_yaml?.includes("- setup:") ? "zerops" : "import");
     } catch (e) {
       setErr(e.message);
     } finally {

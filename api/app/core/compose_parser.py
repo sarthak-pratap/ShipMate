@@ -151,6 +151,13 @@ def parse_compose(text: str, project_name: str = "my-project") -> Topology:
         )
         topo.services.append(svc)
 
+    if not topo.runtimes() and topo.managed():
+        topo.warnings.append(
+            "This compose declares only managed services (no app/runtime) — so the "
+            "zerops.yaml has no build/run blocks. Paste a compose that includes your "
+            "app, or use Repo URL mode to detect the app from your code."
+        )
+
     return topo
 
 
