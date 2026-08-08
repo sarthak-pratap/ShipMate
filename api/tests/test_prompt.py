@@ -49,3 +49,39 @@ def test_frontend_wired_to_api():
 def test_minimal_prompt_still_yields_api():
     t = gen("a simple url shortener")
     assert t.by_hostname("api") is not None
+
+
+# --- AI enhancement merge (pure, no network) ---
+from app.core.llm import apply_enhancement
+from app.core.schema import Port, Service, Topology
+
+
+def test_apply_enhancement_fills_and_adds():
+    topo = Topology(project_name="x", services=[
+        Service(hostname="app", role="api", type="python@3.12", base="python@3.12",
+                ports=[], start=None),   # gaps: no port, no start
+    ])
+    data = {
+        "fill": [{"hostname": "app", "start": "gunicorn app:app", "port": 8080}],
+        "add": [{"hostname": "cache", "role": "cache", "managed_type": "valkey@7",
+                 "depended_by": ["app"]}],
+        "notes": ["celery in deps implies a broker/cache"],
+    }
+    notes = apply_enhancement(topo, data)
+    app = topo.by_hostname("app")
+    assert app.start == "gunicorn app:app"
+    assert app.ports[0].port == 8080
+    assert topo.by_hostname("cache") is not None
+    assert "cache" in app.depends_on          # wired via depended_by
+    assert any("celery" in n for n in notes)
+
+
+def test_apply_enhancement_never_overwrites():
+    topo = Topology(project_name="x", services=[
+        Service(hostname="app", role="api", type="go@1", base="go@1",
+                ports=[Port(9000)], start="./server"),
+    ])
+    # LLM tries to change good values — must be ignored
+    apply_enhancement(topo, {"fill": [{"hostname": "app", "start": "WRONG", "port": 1}]})
+    app = topo.by_hostname("app")
+    assert app.start == "./server" and app.ports[0].port == 9000

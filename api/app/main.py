@@ -38,6 +38,7 @@ def health():
 
 @app.post("/api/generate", response_model=GenerateResponse)
 def generate(req: GenerateRequest):
+    enh_contents: dict = {}   # manifests captured for the optional AI-enhance pass
     if req.mode == "compose":
         topo = parse_compose(req.compose or "", req.project_name or "my-project")
     elif req.mode == "repo":
@@ -50,6 +51,7 @@ def generate(req: GenerateRequest):
                 name = parse_github_url(req.repo_url)[1]
             except RepoFetchError as e:
                 return GenerateResponse(error=str(e))
+        enh_contents = contents
         topo = detect_from_filelist(files, name, contents)
     elif req.mode == "prompt":
         from .core.prompt_heuristic import topology_from_prompt_offline
@@ -72,6 +74,21 @@ def generate(req: GenerateRequest):
     else:
         return GenerateResponse(error=f"unknown mode '{req.mode}'")
 
+    # optional AI gap-filling for detected topologies (repo / compose)
+    if req.ai_enhance and req.mode in ("repo", "compose"):
+        if llm.available():
+            try:
+                summary = _repo_summary(req.compose, enh_contents, req.repo_url, topo)
+                data = llm.enhance_topology(topo, summary)
+                notes = llm.apply_enhancement(topo, data)
+                topo.warnings.extend(notes or ["AI enhance: no gaps found."])
+            except Exception as e:  # noqa: BLE001 — enhancement is best-effort
+                topo.warnings.append(f"AI enhance skipped (LLM error: {e}).")
+        else:
+            topo.warnings.append(
+                "AI enhance requested but no Azure OpenAI configured — set AZURE_OPENAI_* to enable it."
+            )
+
     result = generate_all(topo)
     findings = lint(topo)
     record = store.save_generation(topo.project_name, req.mode, result, findings)
@@ -84,6 +101,20 @@ def generate(req: GenerateRequest):
         lint=findings,
         warnings=result["warnings"],
     )
+
+
+def _repo_summary(compose_text, contents, repo_url, topo) -> str:
+    """Compact context for the LLM: file list + manifest excerpts."""
+    parts = []
+    if repo_url:
+        parts.append(f"repo: {repo_url}")
+    if compose_text:
+        parts.append("docker-compose.yml:\n" + compose_text[:3000])
+    for name, text in list((contents or {}).items())[:8]:
+        parts.append(f"--- {name} ---\n{text[:800]}")
+    if not parts:
+        parts.append("services: " + ", ".join(s.hostname for s in topo.services))
+    return "\n\n".join(parts)
 
 
 @app.get("/api/history")

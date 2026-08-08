@@ -16,6 +16,8 @@ class GenerateRequest(BaseModel):
     file_contents: Optional[Dict[str, str]] = None
     # mode=prompt
     prompt: Optional[str] = None
+    # optional: use the LLM to fill gaps in a detected topology (repo/compose)
+    ai_enhance: Optional[bool] = False
 
 
 class GenerateResponse(BaseModel):

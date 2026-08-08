@@ -42,6 +42,19 @@ Zerops config needs (base, ports, start, env, HA mode, dependencies).
 foundation the other two lean on. The repo detector even hands off to the
 compose parser when it finds a `docker-compose.yml` in the repo.
 
+### Optional AI gap-filling (repo / compose modes)
+When Azure is configured and the user ticks **"✨ use AI to fill gaps"**, a
+second pass runs *after* deterministic detection: `llm.enhance_topology()`
+sends the detected topology + a repo summary to the model and gets back a
+strict JSON of `fill` (missing start/port/base on existing services) and `add`
+(a datastore or worker the static analysis missed). `llm.apply_enhancement()`
+merges it **conservatively** — it only fills *empty* fields and only adds
+*new* hostnames, never overwriting a good detection — and every change is
+recorded as a note. This keeps the trustworthy deterministic result intact
+while letting the LLM close gaps it can genuinely see in the code. The merge is
+pure and unit-tested; the network call is best-effort and never fails the
+request.
+
 ### Detection heuristics (repo mode)
 Priority order, most authoritative first:
 1. Root `docker-compose.yml` / `compose.yml` → compose parser owns it.

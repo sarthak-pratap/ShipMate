@@ -41,11 +41,12 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [tab, setTab] = useState("zerops");
+  const [aiEnhance, setAiEnhance] = useState(false);
 
   async function run(overrides = {}) {
     setBusy(true); setErr(""); setResult(null);
     try {
-      const payload = { mode, ...overrides };
+      const payload = { mode, ai_enhance: aiEnhance, ...overrides };
       if (payload.mode === "compose" && !payload.compose) payload.compose = compose;
       if (payload.mode === "prompt" && !payload.prompt) payload.prompt = prompt;
       if (payload.mode === "repo" && !payload.repo_url) payload.repo_url = repo.trim();
@@ -132,6 +133,14 @@ export default function App() {
             </>
           )}
 
+          {mode !== "prompt" && (
+            <label className="ai-toggle">
+              <input type="checkbox" checked={aiEnhance}
+                     onChange={(e) => setAiEnhance(e.target.checked)} />
+              <span>✨ use AI to fill gaps</span>
+              <em>needs azure key</em>
+            </label>
+          )}
           <button className="go" onClick={() => run()} disabled={busy}>
             {busy ? "working…" : "generate →"}
           </button>
