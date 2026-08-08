@@ -83,7 +83,10 @@ def generate(req: GenerateRequest):
                 data = llm.enhance_topology(topo, summary)
                 notes = llm.apply_enhancement(topo, data)
                 topo.warnings.extend(notes or ["AI enhance: no gaps found."])
-            except Exception as e:  # noqa: BLE001 — enhancement is best-effort
+            except Exception as e:
+                import traceback
+                print(f"=== LLM ENHANCE EXCEPTION ===\n{traceback.format_exc()}", flush=True)
+                # log it but don't fail the whole request
                 topo.warnings.append(f"AI enhance skipped (LLM error: {e}).")
         else:
             topo.warnings.append(
