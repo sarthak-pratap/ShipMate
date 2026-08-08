@@ -89,3 +89,22 @@ def test_vite_frontend_detected_as_frontend():
         {"package.json": '{"scripts":{"dev":"vite"},"devDependencies":{"vite":"^5"}}'},
     )
     assert topo.by_hostname("app").role == "frontend"
+
+
+def test_monorepo_backend_frontend():
+    files = [
+        "backend/requirements.txt", "backend/app/main.py",
+        "frontend/package.json", "frontend/src/App.jsx",
+        "README.md",
+    ]
+    contents = {
+        "backend/requirements.txt": "fastapi\nuvicorn\nsqlmodel\n",
+        "frontend/package.json": '{"scripts":{"dev":"vite","build":"vite build"},"devDependencies":{"vite":"^5"}}',
+    }
+    topo = detect_from_filelist(files, "casemind", contents)
+    names = {s.hostname: s for s in topo.services}
+    assert "api" in names and "web" in names          # backend->api, frontend->web
+    assert names["api"].base.startswith("python")
+    assert names["web"].role == "frontend"
+    assert "db" in names                               # sqlmodel -> postgres
+    assert "api" in names["web"].depends_on            # frontend wired to api

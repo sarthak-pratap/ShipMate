@@ -77,15 +77,13 @@ def fetch_github(url: str) -> Tuple[List[str], Dict[str, str]]:
         (p for p in files if p.rsplit("/", 1)[-1].lower() in MANIFESTS),
         key=lambda p: p.count("/"),
     )
-    for path in candidates[:12]:  # cap the fetches
-        name = path.rsplit("/", 1)[-1]
-        key = name if name not in contents else path
+    for path in candidates[:12]:  # cap the fetches; keyed by full path
         try:
             raw = _get(
                 f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
             )
             if len(raw) < 200_000:
-                contents[key] = raw.decode("utf-8", errors="ignore")
+                contents[path] = raw.decode("utf-8", errors="ignore")
         except Exception:  # noqa: BLE001
             continue
 

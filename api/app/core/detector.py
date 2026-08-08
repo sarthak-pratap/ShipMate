@@ -1,12 +1,16 @@
 """Repo stack detection (Mode 2).
 
-Given a repo's file list + manifest contents, infer the runtime and a sensible
-topology. Priority order (most authoritative first):
+Given a repo's file list + manifest contents, infer the runtime(s) and a
+sensible topology. Priority order (most authoritative first):
 
-  1. Dockerfile      — FROM → base, EXPOSE → port, CMD/ENTRYPOINT → start, ENV → env
-  2. docker-compose  — if present, hand off to the compose parser (multi-service truth)
-  3. language marker — package.json / requirements.txt / go.mod / ...
-  4. dependency scan — postgres/redis client libs → managed services
+  1. docker-compose  — if present, hand off to the compose parser (multi-service truth)
+  2. monorepo        — runtime manifests in several subdirs → one service per subdir
+  3. Dockerfile      — FROM → base, EXPOSE → port, CMD/ENTRYPOINT → start, ENV → env
+  4. language marker — package.json / requirements.txt / go.mod / ...
+  5. dependency scan — postgres/redis/s3 client libs → managed services
+
+`file_contents` may be keyed by full path ("backend/requirements.txt") or by
+basename ("requirements.txt") — both are accepted.
 
 Pure functions, no network: the worker or the repo_fetcher supply the inputs.
 """
@@ -14,7 +18,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from .mappings import DETECT_FILES, match_runtime
 from .schema import ROLE_API, ROLE_FRONTEND, ROLE_WORKER, Port, Service, Topology
@@ -26,90 +30,178 @@ _ENV_RE = re.compile(r"^\s*ENV\s+(.+)$", re.IGNORECASE | re.MULTILINE)
 _PY_VER_RE = re.compile(r"python:(\d+\.\d+)")
 _NODE_VER_RE = re.compile(r"node:(\d+)")
 
+_FRONTEND_DIRS = ("frontend", "web", "client", "ui", "www", "app-web")
+_WORKER_DIRS = ("worker", "workers", "jobs", "cron", "consumer", "tasks")
+
+# markers that identify a runtime root (subset of DETECT_FILES keys, lowercase)
+_RUNTIME_MARKERS = {m.lower() for m in DETECT_FILES}
+
+
+class _Contents:
+    """Path-or-basename lookup over the provided file_contents mapping."""
+
+    def __init__(self, raw: Dict[str, str]):
+        self.raw = raw or {}
+
+    def get(self, path: str) -> Optional[str]:
+        if path in self.raw:
+            return self.raw[path]
+        base = path.rsplit("/", 1)[-1]
+        if base in self.raw:
+            return self.raw[base]
+        # case-insensitive fallback (Dockerfile vs dockerfile)
+        for k, v in self.raw.items():
+            if k.lower() == path.lower() or k.rsplit("/", 1)[-1].lower() == base.lower():
+                return v
+        return None
+
+    def blob(self) -> str:
+        return " ".join(self.raw.values()).lower()
+
 
 def detect_from_filelist(
     files: List[str],
     project_name: str = "detected-project",
     file_contents: Optional[Dict[str, str]] = None,
 ) -> Topology:
-    file_contents = file_contents or {}
-    lower_names = {f.rsplit("/", 1)[-1].lower(): f for f in files}
+    contents = _Contents(file_contents or {})
 
-    # --- 1. docker-compose in the repo? that's the multi-service source of truth
-    for key in ("docker-compose.yml", "docker-compose.yaml"):
-        if key in file_contents:
-            from .compose_parser import parse_compose  # local import, no cycle at module load
-            topo = parse_compose(file_contents[key], project_name)
-            topo.warnings.insert(0, "Detected docker-compose.yml; topology derived from it.")
-            return topo
+    # --- 1. docker-compose anywhere near the root? that's the source of truth
+    for f in files:
+        base = f.rsplit("/", 1)[-1].lower()
+        if base in ("docker-compose.yml", "docker-compose.yaml") and f.count("/") == 0:
+            text = contents.get(f)
+            if text:
+                from .compose_parser import parse_compose
+                topo = parse_compose(text, project_name)
+                topo.warnings.insert(0, "Detected docker-compose.yml; topology derived from it.")
+                return topo
+
+    # --- 2. locate runtime roots: dirs (incl. repo root "") holding a marker
+    roots: Dict[str, str] = {}  # dir -> marker filename
+    for f in files:
+        parts = f.split("/")
+        base = parts[-1].lower()
+        if base in _RUNTIME_MARKERS:
+            d = "/".join(parts[:-1])
+            if d.count("/") <= 0 and d not in roots:  # root or first-level dirs only
+                roots[d] = parts[-1]
 
     topo = Topology(project_name=project_name)
 
-    # --- 2. Dockerfile (authoritative for base/port/start)
-    dockerfile = file_contents.get("Dockerfile") or file_contents.get("dockerfile")
-    df = _parse_dockerfile(dockerfile) if dockerfile else None
+    if len([d for d in roots if d != ""]) >= 2 and "" not in roots:
+        # --- monorepo: one runtime service per top-level dir
+        topo.warnings.append(
+            f"Monorepo detected ({', '.join(sorted(roots))}); one service per directory."
+        )
+        for d in sorted(roots):
+            svc = _detect_service(d, files, contents, hostname=_hostname_for(d))
+            topo.services.append(svc)
+        _wire_frontend_to_api(topo)
+    else:
+        # --- single service at the repo root (or the one subdir that has code)
+        root = "" if "" in roots else (sorted(roots)[0] if roots else "")
+        svc = _detect_service(root, files, contents, hostname="app")
+        if root:
+            topo.warnings.append(f"Runtime found in '{root}/'.")
+        if svc.base is None:
+            topo.warnings.append("No runtime marker found; defaulting to nodejs@22.")
+            svc.base = svc.type = "nodejs@22"
+            svc.start = svc.start or "npm run start"
+        topo.services.append(svc)
 
-    # --- 3. language marker fallback
+    # --- dependency scan → managed services (shared across the project)
+    blob = contents.blob()
+    apis = [s for s in topo.services if s.role in (ROLE_API, ROLE_WORKER)]
+    attach = apis[0] if apis else (topo.services[0] if topo.services else None)
+    if attach:
+        if _mentions(blob, "psycopg", "asyncpg", "postgres", "prisma", "sequelize",
+                     "typeorm", "sqlalchemy", "sqlmodel"):
+            topo.services.append(Service(hostname="db", role="database", type="postgresql@16"))
+            attach.env.setdefault("DB_HOST", "db")
+            attach.depends_on.append("db")
+        if _mentions(blob, "redis", "ioredis", "valkey", "celery"):
+            topo.services.append(Service(hostname="cache", role="cache", type="valkey@7"))
+            attach.env.setdefault("CACHE_HOST", "cache")
+            attach.depends_on.append("cache")
+        if _mentions(blob, "boto3", "minio", "aws-sdk", "s3client"):
+            topo.services.append(Service(hostname="storage", role="storage", type="object-storage"))
+            attach.depends_on.append("storage")
+
+    return topo
+
+
+def _detect_service(dir_prefix: str, files: List[str], contents: _Contents,
+                    hostname: str) -> Service:
+    """Detect one runtime service rooted at `dir_prefix` ("" = repo root)."""
+    pfx = f"{dir_prefix}/" if dir_prefix else ""
+
+    # Dockerfile in this dir is authoritative
+    df_text = contents.get(f"{pfx}Dockerfile")
+    df = _parse_dockerfile(df_text) if df_text else None
+
+    # language marker fallback
     base, role, start = None, ROLE_API, None
+    scoped = {f[len(pfx):] for f in files if f.startswith(pfx)}
+    scoped_lower = {s.lower() for s in scoped if "/" not in s}
     for marker, (mbase, mrole, mstart) in DETECT_FILES.items():
-        if marker.lower() in lower_names:
+        if marker.lower() in scoped_lower:
             base, role, start = mbase, mrole, mstart
             break
 
+    port, env = None, {}
     if df:
-        base = df["base"] or base or "nodejs@22"
+        base = df["base"] or base
         start = df["start"] or start
         port = df["port"]
         env = df["env"]
-        topo.warnings.append("Dockerfile found; base, port and start derived from it.")
-    else:
-        port, env = None, {}
-        if base is None:
-            topo.warnings.append("No runtime marker found; defaulting to nodejs@22.")
-            base, start = "nodejs@22", "npm run start"
 
-    # refine start/port from manifests
-    if base.startswith("nodejs") and "package.json" in file_contents:
-        pkg = _safe_json(file_contents["package.json"]) or {}
+    # role refinement from the directory name
+    dname = dir_prefix.lower()
+    if any(w in dname for w in _FRONTEND_DIRS):
+        role = ROLE_FRONTEND
+    elif any(w in dname for w in _WORKER_DIRS):
+        role = ROLE_WORKER
+
+    # refine from package.json
+    pkg_text = contents.get(f"{pfx}package.json")
+    if base and base.startswith("nodejs") and pkg_text:
+        pkg = _safe_json(pkg_text) or {}
         scripts = pkg.get("scripts", {})
-        if not df or not df.get("start"):
+        if not (df and df.get("start")):
             start = "npm run start" if "start" in scripts else ("npm run dev" if "dev" in scripts else start)
-        # a vite/CRA app with no server deps is a static frontend
         deps = {**pkg.get("dependencies", {}), **pkg.get("devDependencies", {})}
         if "vite" in deps and not any(d in deps for d in ("express", "fastify", "koa", "next")):
             role = ROLE_FRONTEND
 
-    if port is None:
+    if port is None and base:
         port = 8000 if base.startswith("python") else 3000
 
-    app = Service(
-        hostname="app",
+    return Service(
+        hostname=hostname,
         role=role,
-        type=base,
+        type=base or "nodejs@22",
         base=base,
-        ports=[Port(port=port, http_support=True)],
+        ports=[Port(port=port, http_support=True)] if port else [],
         start=start,
-        build_commands=_build_for(base),
+        build_commands=_build_for(base or "nodejs@22"),
         env=env,
-        public=True,
+        public=role in (ROLE_FRONTEND, ROLE_API),
     )
-    topo.services.append(app)
 
-    # --- 4. dependency scan → managed services
-    deps_blob = " ".join(file_contents.values()).lower()
-    if _mentions(deps_blob, "psycopg", "asyncpg", "postgres", "prisma", "sequelize", "typeorm", "sqlalchemy"):
-        topo.services.append(Service(hostname="db", role="database", type="postgresql@16"))
-        app.env.setdefault("DB_HOST", "db")
-        app.depends_on.append("db")
-    if _mentions(deps_blob, "redis", "ioredis", "valkey", "celery"):
-        topo.services.append(Service(hostname="cache", role="cache", type="valkey@7"))
-        app.env.setdefault("CACHE_HOST", "cache")
-        app.depends_on.append("cache")
-    if _mentions(deps_blob, "boto3", "minio", "aws-sdk", "s3client"):
-        topo.services.append(Service(hostname="storage", role="storage", type="object-storage"))
-        app.depends_on.append("storage")
 
-    return topo
+def _wire_frontend_to_api(topo: Topology) -> None:
+    fronts = [s for s in topo.services if s.role == ROLE_FRONTEND]
+    apis = [s for s in topo.services if s.role == ROLE_API]
+    for f in fronts:
+        for a in apis:
+            f.depends_on.append(a.hostname)
+
+
+def _hostname_for(d: str) -> str:
+    name = re.sub(r"[^a-z0-9]", "", d.lower()) or "app"
+    aliases = {"backend": "api", "server": "api", "frontend": "web", "client": "web"}
+    return aliases.get(name, name)
 
 
 def _parse_dockerfile(text: str) -> Dict:
@@ -138,7 +230,6 @@ def _parse_dockerfile(text: str) -> Dict:
         out["start"] = _cmd_to_start(cmd[-1].strip())
 
     for env_line in _ENV_RE.findall(text):
-        # handles both `ENV A=1 B=2` and continuation-style `ENV A=1 \`
         for pair in re.findall(r"([A-Za-z_][A-Za-z0-9_]*)=([^\s\\]+)", env_line):
             out["env"][pair[0]] = pair[1]
 
