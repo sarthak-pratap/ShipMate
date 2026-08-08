@@ -2,37 +2,40 @@
 
 The Zerops Challenge allows AI assistance for code, debugging, tests, design and
 documentation, but requires that (a) every AI tool used is disclosed, (b) there
-is meaningful original work of your own, and (c) you understand the code and can
-explain the architecture and decisions to the judges. This file is that
+is meaningful contribution of your own, and (c) you understand the code and can
+explain the architecture and the decisions to the judges. This file is that
 disclosure — mirror it into the submission form.
 
-> ⚠️ FILL IN before submitting: list the exact tools/models you used and adjust
-> the notes to match reality. The table below reflects the tools used while
-> preparing this repository; edit it to be accurate for you.
+## Tool used
 
-## Tools used
+**One AI tool was used: Hyperagent — an autonomous AI coding agent (built on
+Anthropic's Claude).** No other AI tools were used.
 
-| Tool | Used for |
-|------|----------|
-| _e.g. Claude Code / Cursor / Codex_ | code scaffolding, refactoring, tests |
-| _e.g. an AI assistant_ | architecture discussion, docs, UI design direction |
-| Azure AI Foundry (GPT) | **a runtime feature** — prompt mode turns English into a service list (this is part of the product, not a build tool) |
+| Area | AI involvement |
+|------|----------------|
+| Architecture & product direction | Directed by me; the agent proposed options, I chose the approach (Zerops-native dev tool, five-service design, three input modes) |
+| Implementation (`api/app/core/*`, FastAPI, worker, React UI) | Written by the agent under my direction |
+| Tests | Written by the agent; I ran and reviewed them (`make test`) |
+| Verification | I tested the tool against real repositories and confirmed the generated `zerops.yaml` and topology were correct |
+| Documentation | Drafted by the agent, reviewed by me |
+| Azure OpenAI (prompt mode) | A **runtime product feature**, not a build tool — see below |
 
-## What is my own work / understanding
+## My contribution
 
-- The core logic — the `Topology` intermediate representation, the
-  docker-compose parser, the repo/Dockerfile detector, the `zerops.yaml` +
-  project-import generator, and the misconfig linter rules — is authored and
-  understood by me. I can explain every module in `api/app/core/` and the
-  reasoning behind the five-service Zerops architecture (see `ARCHITECTURE.md`).
-- AI assistance was used for boilerplate, the React UI, tests, and
-  documentation, and is disclosed above.
-- No part of this project is an unmodified, unreviewed AI dump: I reviewed,
-  ran (`make test`), and verified the behaviour against real repositories.
+- I set the product direction and made the design decisions: what to build, the
+  five-service Zerops architecture, the three input modes, the neo-brutalist UI,
+  and the UX iterations.
+- I reviewed, ran, and verified the code, including testing it end-to-end
+  against real public repositories.
+- I understand how the system works and can explain every part of it to the
+  judges — see [`ARCHITECTURE.md`](ARCHITECTURE.md) for the module-by-module
+  walkthrough (the `Topology` IR, the compose parser, the repo/Dockerfile
+  detector, the generator, and the linter).
 
 ## Note on the runtime LLM
 
-Prompt mode calls Azure OpenAI **at runtime** to propose a service list from a
-natural-language description. This is a product feature, not a code-generation
-tool used to build ShipMate — and the schema-correct YAML is always produced by
-ShipMate's own deterministic generator, not by the model.
+Prompt mode calls Azure OpenAI **at runtime** to turn a natural-language
+description into a structured service list. This is a feature of the product,
+not a tool used to write ShipMate's source code — and the schema-correct
+`zerops.yaml` is always produced by ShipMate's own deterministic generator, not
+by the model.
