@@ -1,14 +1,17 @@
 # ShipMate — Zerops project import.
-# Declares all five services. Import once to create the project, then each
-# runtime service deploys using its own zerops.yaml (web/, api/, worker/).
+# Creates the project + all five services. Import once, then push each runtime
+# service from its own directory (each has its own zerops.yaml).
 #
 #   zcli project project-import zerops-project-import.yml
 #
+# Secrets (Azure OpenAI) are NOT set here — add them in the Zerops GUI on the
+# api and worker services after import (Environment variables → add secret).
+# ShipMate runs fine without them (prompt mode falls back to the offline parser).
 project:
   name: shipmate
 
 services:
-  # ---- public frontend (React + Vite, built to static) ----
+  # ---- public frontend (React + Vite → static) ----
   - hostname: web
     type: static
     enableSubdomainAccess: true
@@ -18,26 +21,18 @@ services:
     type: python@3.12
     enableSubdomainAccess: true
     minContainers: 1
-    envSecrets:
-      AZURE_OPENAI_ENDPOINT: <fill-in-zerops-gui>
-      AZURE_OPENAI_API_KEY: <fill-in-zerops-gui>
-      AZURE_OPENAI_DEPLOYMENT: <fill-in-zerops-gui>
 
-  # ---- worker (Python; private only, no subdomain) ----
+  # ---- worker (Python; private only, no public subdomain) ----
   - hostname: worker
     type: python@3.12
     minContainers: 1
-    envSecrets:
-      AZURE_OPENAI_ENDPOINT: <fill-in-zerops-gui>
-      AZURE_OPENAI_API_KEY: <fill-in-zerops-gui>
-      AZURE_OPENAI_DEPLOYMENT: <fill-in-zerops-gui>
 
-  # ---- managed Postgres (history / saved configs) ----
+  # ---- managed Postgres (history / saved configs / shareable links) ----
   - hostname: db
     type: postgresql@16
-    mode: NON_HA          # bump to HA if you want failover during judging
+    mode: NON_HA
 
-  # ---- managed Valkey (cache + job queue + rate-limit) ----
+  # ---- managed Valkey (cache + job queue) ----
   - hostname: cache
     type: valkey@7
     mode: NON_HA
