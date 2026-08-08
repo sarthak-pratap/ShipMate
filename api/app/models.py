@@ -20,6 +20,15 @@ class GenerateRequest(BaseModel):
     ai_enhance: Optional[bool] = False
 
 
+class DeployScriptRequest(BaseModel):
+    id: str                                   # saved generation id
+    project_name: Optional[str] = None
+    target: Optional[str] = "new"             # "new" | "existing"
+    push: Optional[List[str]] = None          # runtime hostnames to push
+    ha_db: Optional[bool] = None
+    public: Optional[Dict[str, bool]] = None
+
+
 class GenerateResponse(BaseModel):
     id: Optional[str] = None
     project_name: Optional[str] = None

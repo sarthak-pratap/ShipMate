@@ -18,7 +18,7 @@ from .core.compose_parser import parse_compose
 from .core.detector import detect_from_filelist
 from .core.linter import lint, rule_count, score as lint_score
 from .core.zerops_generator import generate_all
-from .models import GenerateRequest, GenerateResponse
+from .models import DeployScriptRequest, GenerateRequest, GenerateResponse
 from . import store
 
 app = FastAPI(title="ShipMate API", version="0.1.0")
@@ -121,6 +121,23 @@ def get_generation(gid: str):
         warnings=rec.get("warnings"),
         score=rec.get("score"),
     )
+
+
+@app.post("/api/deploy-script")
+def deploy_script(req: DeployScriptRequest):
+    """The Deploy wizard: answers -> a deterministic, situation-specific script."""
+    from .core.deploy_script import build_deploy_script
+    rec = store.get_generation(req.id)
+    if not rec:
+        return {"error": "Generation not found or expired — regenerate first."}
+    options = {
+        "project_name": req.project_name,
+        "target": req.target,
+        "push": req.push,
+        "ha_db": req.ha_db,
+        "public": req.public,
+    }
+    return {"script": build_deploy_script(rec, options)}
 
 
 def _repo_summary(compose_text, contents, repo_url, topo) -> str:

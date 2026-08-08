@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { generate, fetchGeneration } from "./api.js";
 import Diagram from "./components/Diagram.jsx";
+import DeployWizard from "./components/DeployWizard.jsx";
 
 const SAMPLE_COMPOSE = `name: taskboard
 services:
@@ -94,34 +95,7 @@ export default function App() {
     navigator.clipboard?.writeText(url);
     flash("Share link copied ✓");
   }
-  function deploy() {
-    if (!result) return;
-    const runtimes = (result.graph?.nodes || [])
-      .filter((n) => ["frontend", "api", "worker"].includes(n.role))
-      .map((n) => n.id);
-    const pushes = runtimes.length
-      ? runtimes.map((h) => `zcli push ${h}`).join("\n")
-      : "# (no runtime services detected — managed services deploy from the import alone)";
-    const script =
-`# ShipMate → Zerops
-# Run this from the ROOT of your application's repository (where your source
-# code lives) with zcli installed and logged in (zcli login <token>).
-cat > zerops.yaml <<'ZEOF'
-${result.zerops_yaml}ZEOF
-cat > zerops-project-import.yml <<'IEOF'
-${result.import_yaml}IEOF
-
-# 1. create the project + all services
-zcli project project-import zerops-project-import.yml
-
-# 2. build & deploy each runtime service (zcli is interactive — it will ask
-#    which project to use; each push reads the matching setup from zerops.yaml)
-${pushes}
-
-# 3. any secrets flagged in the notes must be set in the Zerops GUI
-#    (service → Environment variables → secret) before the app fully works.`;
-    copy(script, "Deploy script copied");
-  }
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   const activeText = tab === "zerops" ? result?.zerops_yaml : result?.import_yaml;
   const activeFilename = tab === "zerops" ? "zerops.yaml" : "zerops-project-import.yml";
@@ -222,7 +196,7 @@ ${pushes}
             {result && (
               <div className="head-actions">
                 <button onClick={share} title="copy a shareable link">🔗 share</button>
-                <button className="deploy" onClick={deploy} title="copy the zcli deploy command">▲ deploy to zerops</button>
+                <button className="deploy" onClick={() => setWizardOpen(true)} title="answer a few questions, get your exact deploy script">▲ deploy to zerops</button>
               </div>
             )}
           </div>
@@ -273,6 +247,13 @@ ${pushes}
         </section>
       </div>
 
+      {wizardOpen && result && (
+        <DeployWizard
+          result={result}
+          onClose={() => setWizardOpen(false)}
+          onCopied={() => { flash("Deploy script copied ✓"); setWizardOpen(false); }}
+        />
+      )}
       {toast && <div className="toast">{toast}</div>}
     </div>
   );

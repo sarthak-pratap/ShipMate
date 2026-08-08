@@ -210,6 +210,54 @@ header {
 .head-actions button:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
 .head-actions .deploy { background: var(--yellow); }
 
+/* ---------- deploy wizard ---------- */
+.wizard-overlay {
+  position: fixed; inset: 0; z-index: 1500;
+  background: rgba(17,17,17,0.55);
+  display: flex; align-items: center; justify-content: center; padding: 4vh 4vw;
+}
+.wizard {
+  background: var(--paper); border: var(--border); box-shadow: 10px 10px 0 var(--ink);
+  width: min(680px, 100%); max-height: 90vh; overflow: auto;
+  padding: 20px; display: flex; flex-direction: column; gap: 16px;
+}
+.wizard-head { display: flex; align-items: center; }
+.wizard-head .panel-label { background: var(--yellow); }
+.wizard-close {
+  margin-left: auto; font-family: "IBM Plex Mono", monospace; font-weight: 700;
+  background: var(--pink); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink);
+  padding: 4px 10px; cursor: pointer;
+}
+.wizard-q { display: flex; flex-direction: column; gap: 8px; }
+.wizard-q > label {
+  font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.wizard-q input {
+  background: var(--white); border: var(--border); padding: 11px 13px;
+  font-family: "IBM Plex Mono", monospace; font-size: 14px; outline: none;
+}
+.wizard-q input:focus { background: #fffbe8; }
+.wizard-radios, .wizard-checks { display: flex; gap: 8px; flex-wrap: wrap; }
+.wizard-radios button, .wizard-checks button {
+  font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+  background: var(--white); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink);
+  padding: 8px 12px; cursor: pointer; text-align: left;
+}
+.wizard-radios button.on, .wizard-checks button.on { background: var(--green); }
+.wizard-radios button em, .wizard-checks button em {
+  display: block; font-style: normal; font-weight: 500; font-size: 10.5px; opacity: 0.75;
+}
+.wizard-note { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: #555; }
+.wizard-script { max-height: 46vh; overflow: auto; }
+.wizard-actions { display: flex; gap: 10px; align-items: center; }
+.wizard-actions .go { flex: 1; }
+.wizard-back {
+  font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+  background: var(--white); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink);
+  padding: 10px 14px; cursor: pointer;
+}
+
 .toast {
   position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
   z-index: 2000; background: var(--ink); color: var(--paper);
