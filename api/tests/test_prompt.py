@@ -85,3 +85,29 @@ def test_apply_enhancement_never_overwrites():
     apply_enhancement(topo, {"fill": [{"hostname": "app", "start": "WRONG", "port": 1}]})
     app = topo.by_hostname("app")
     assert app.start == "./server" and app.ports[0].port == 9000
+
+
+# --- lint score + persistence roundtrip ---
+from app.core.linter import score as lint_score
+from app import store
+
+
+def test_score_grades():
+    assert lint_score([])["grade"] == "ship it"
+    assert lint_score([])["score"] == 10
+    warn = [{"severity": "warning"}]
+    assert lint_score(warn)["grade"] == "deploys, review"
+    err = [{"severity": "error"}, {"severity": "warning"}]
+    s = lint_score(err)
+    assert s["grade"] == "won't deploy" and s["errors"] == 1 and s["score"] == 6
+
+
+def test_store_roundtrip_in_memory():
+    payload = {"project_name": "demo", "zerops_yaml": "zerops: []",
+               "import_yaml": "project: {}", "graph": {"nodes": [], "edges": []},
+               "lint": [], "warnings": [], "score": {"score": 10}}
+    rec = store.save_generation("demo", "compose", payload)
+    got = store.get_generation(rec["id"])
+    assert got and got["project_name"] == "demo"
+    assert got["zerops_yaml"] == "zerops: []"
+    assert store.get_generation("nope") is None

@@ -188,6 +188,35 @@ header {
 .out-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .out-head .panel-label { background: var(--purple); }
 
+.score-badge {
+  font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  border: 2px solid var(--ink); padding: 4px 10px; box-shadow: 3px 3px 0 var(--ink);
+  background: var(--green);
+}
+.score-badge b { font-family: "Archivo Black", sans-serif; font-size: 13px; }
+.score-badge.s-ship { background: var(--green); }        /* ship it */
+.score-badge.s-deploys { background: var(--yellow); }    /* deploys, review */
+.score-badge.s-wont { background: var(--pink); }         /* won't deploy */
+
+.head-actions { margin-left: auto; display: flex; gap: 8px; }
+.head-actions button {
+  font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; background: var(--white); border: 2px solid var(--ink);
+  padding: 5px 11px; cursor: pointer; box-shadow: 3px 3px 0 var(--ink);
+  transition: transform 0.06s ease, box-shadow 0.06s ease;
+}
+.head-actions button:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--ink); }
+.head-actions button:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+.head-actions .deploy { background: var(--yellow); }
+
+.toast {
+  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+  z-index: 2000; background: var(--ink); color: var(--paper);
+  font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 700;
+  padding: 10px 18px; border: 3px solid var(--ink); box-shadow: 5px 5px 0 var(--yellow);
+}
+
 .diagram-box {
   flex: 0 0 auto;
   height: 46%;

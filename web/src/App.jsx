@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { generate } from "./api.js";
+import React, { useEffect, useState } from "react";
+import { generate, fetchGeneration } from "./api.js";
 import Diagram from "./components/Diagram.jsx";
 
 const SAMPLE_COMPOSE = `name: taskboard
@@ -42,6 +42,20 @@ export default function App() {
   const [err, setErr] = useState("");
   const [tab, setTab] = useState("zerops");
   const [aiEnhance, setAiEnhance] = useState(false);
+  const [toast, setToast] = useState("");
+
+  // open a shared result: /?g=<id>
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("g");
+    if (!id) return;
+    setBusy(true);
+    fetchGeneration(id)
+      .then((data) => { if (data.error) throw new Error(data.error); setResult(data); })
+      .catch((e) => setErr(`Couldn't load shared result: ${e.message}`))
+      .finally(() => setBusy(false));
+  }, []);
+
+  function flash(msg) { setToast(msg); setTimeout(() => setToast(""), 1800); }
 
   async function run(overrides = {}) {
     setBusy(true); setErr(""); setResult(null);
@@ -63,11 +77,33 @@ export default function App() {
 
   function runRepoExample(url) { setRepo(url); run({ mode: "repo", repo_url: url }); }
 
-  function copy(text) { navigator.clipboard?.writeText(text); }
+  function copy(text, label = "Copied") {
+    navigator.clipboard?.writeText(text);
+    flash(`${label} ✓`);
+  }
   function download(name, text) {
     const blob = new Blob([text], { type: "text/yaml" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    flash("Downloaded ✓");
+  }
+  function share() {
+    if (!result?.id) return;
+    const url = `${window.location.origin}/?g=${result.id}`;
+    navigator.clipboard?.writeText(url);
+    flash("Share link copied ✓");
+  }
+  function deploy() {
+    if (!result) return;
+    const script =
+`# ShipMate → Zerops. Run from an empty project dir with zcli installed & logged in.
+cat > zerops.yaml <<'ZEOF'
+${result.zerops_yaml}ZEOF
+cat > zerops-project-import.yml <<'IEOF'
+${result.import_yaml}IEOF
+zcli project project-import zerops-project-import.yml
+# then push each runtime service — see DEPLOY.md`;
+    copy(script, "Deploy command copied");
   }
 
   const activeText = tab === "zerops" ? result?.zerops_yaml : result?.import_yaml;
@@ -161,6 +197,17 @@ export default function App() {
             <span className="panel-label">
               {result ? `topology · ${result.project_name}` : "topology"}
             </span>
+            {result?.score && (
+              <span className={`score-badge s-${result.score.grade.split(" ")[0].replace(/[^a-z]/g, "")}`}>
+                <b>{result.score.score}/10</b> {result.score.grade}
+              </span>
+            )}
+            {result && (
+              <div className="head-actions">
+                <button onClick={share} title="copy a shareable link">🔗 share</button>
+                <button className="deploy" onClick={deploy} title="copy the zcli deploy command">▲ deploy to zerops</button>
+              </div>
+            )}
           </div>
 
           {result ? (
@@ -208,6 +255,8 @@ export default function App() {
           )}
         </section>
       </div>
+
+      {toast && <div className="toast">{toast}</div>}
     </div>
   );
 }

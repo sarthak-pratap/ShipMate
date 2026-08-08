@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .core import llm
 from .core.compose_parser import parse_compose
 from .core.detector import detect_from_filelist
-from .core.linter import lint, rule_count
+from .core.linter import lint, rule_count, score as lint_score
 from .core.zerops_generator import generate_all
 from .models import GenerateRequest, GenerateResponse
 from . import store
@@ -91,15 +91,35 @@ def generate(req: GenerateRequest):
 
     result = generate_all(topo)
     findings = lint(topo)
-    record = store.save_generation(topo.project_name, req.mode, result, findings)
+    sc = lint_score(findings)
+    payload = {
+        "project_name": topo.project_name,
+        "zerops_yaml": result["zerops_yaml"],
+        "import_yaml": result["import_yaml"],
+        "graph": result["graph"],
+        "lint": findings,
+        "warnings": result["warnings"],
+        "score": sc,
+    }
+    record = store.save_generation(topo.project_name, req.mode, payload)
+    return GenerateResponse(id=record["id"], **payload)
+
+
+@app.get("/api/generation/{gid}")
+def get_generation(gid: str):
+    """Fetch a saved generation by id — powers shareable /?g=<id> links."""
+    rec = store.get_generation(gid)
+    if not rec:
+        return GenerateResponse(error="Generation not found or expired.")
     return GenerateResponse(
-        id=record["id"],
-        project_name=topo.project_name,
-        zerops_yaml=result["zerops_yaml"],
-        import_yaml=result["import_yaml"],
-        graph=result["graph"],
-        lint=findings,
-        warnings=result["warnings"],
+        id=rec.get("id"),
+        project_name=rec.get("project_name"),
+        zerops_yaml=rec.get("zerops_yaml"),
+        import_yaml=rec.get("import_yaml"),
+        graph=rec.get("graph"),
+        lint=rec.get("lint"),
+        warnings=rec.get("warnings"),
+        score=rec.get("score"),
     )
 
 

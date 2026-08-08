@@ -10,6 +10,12 @@ export async function generate(payload) {
   return res.json();
 }
 
+export async function fetchGeneration(id) {
+  const res = await fetch(`${BASE}/api/generation/${id}`);
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  return res.json();
+}
+
 export async function health() {
   const res = await fetch(`${BASE}/api/health`);
   return res.json();

@@ -190,5 +190,22 @@ def lint(topo: Topology) -> List[dict]:
     return [f.as_dict() for f in findings]
 
 
+def score(findings: List[dict]) -> dict:
+    """A 0-10 deploy-readiness score from lint findings. Errors hurt most."""
+    errors = sum(1 for f in findings if f["severity"] == SEV_ERROR)
+    warnings = sum(1 for f in findings if f["severity"] == SEV_WARN)
+    infos = sum(1 for f in findings if f["severity"] == SEV_INFO)
+    raw = 10.0 - (errors * 3.0) - (warnings * 1.0) - (infos * 0.25)
+    val = max(0, min(10, round(raw)))
+    if errors:
+        grade = "won't deploy"
+    elif warnings:
+        grade = "deploys, review"
+    else:
+        grade = "ship it"
+    return {"score": val, "grade": grade, "errors": errors,
+            "warnings": warnings, "infos": infos}
+
+
 def rule_count() -> int:
     return len(_RULES)

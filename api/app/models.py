@@ -28,4 +28,5 @@ class GenerateResponse(BaseModel):
     graph: Optional[Dict[str, Any]] = None
     lint: Optional[List[Dict[str, Any]]] = None
     warnings: Optional[List[str]] = None
+    score: Optional[Dict[str, Any]] = None
     error: Optional[str] = None

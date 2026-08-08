@@ -95,6 +95,14 @@ zcli push --serviceId <web-id>      # from web/
 That's it — you get a live URL for `web`, wired to `api`, `worker`, `db` and
 `cache` over the private network.
 
+## Deploy, share & score
+
+Every result carries a **deploy-readiness score** (0–10, from the linter), a
+**🔗 share** button that copies a `/?g=<id>` link (the generation is persisted
+to Postgres and re-openable by anyone — this exercises the DB service), and a
+**▲ deploy to zerops** button that copies a ready-to-run `zcli` command block.
+Point ShipMate at its own repo and it reproduces its own five-service config.
+
 ## The three input modes
 
 | Mode | Input | Path | LLM? |
