@@ -38,12 +38,24 @@ _DB_SIGNALS: List[Tuple[str, str, List[str]]] = [
 ]
 _CACHE_KW = ["redis", "valkey", "cache", "session", "presence", "rate limit",
              "rate-limit", "queue", "celery"]
+# product-intent words that imply persistence even when no DB tech is named
+_DB_INTENT_KW = ["to-do", "todo", "to do", "note", "task", "list", "save",
+                 "store", "persist", "record", "crud", "account", "user",
+                 "profile", "post", "comment", "history", "track", "inventory",
+                 "booking", "order", "catalog", "blog", "meeting", "message",
+                 "log", "review", "ticket", "form", "survey", "poll", "wiki",
+                 "shorten", "shortener", "link", "document", "doc", "page",
+                 "content", "report", "manage", "crm", "e-commerce", "shop",
+                 "store front", "storefront", "forum", "feed", "library"]
+# words implying multi-user collaboration / realtime sync (→ cache + note)
+_COLLAB_KW = ["collab", "shared", "with others", "team", "multiplayer",
+              "together", "sync", "concurrent", "co-edit", "coedit"]
 _WORKER_KW = ["worker", "background", "job", "cron", "scheduled", "nightly",
               "reminder", "email", "digest", "ingest", "pipeline", "consumer",
               "process", "batch", "etl"]
 _FRONTEND_KW = ["frontend", "front-end", "react", "vue", "svelte", "next",
                 "spa", "dashboard", " ui", "web app", "webapp", "website",
-                "landing", "client app"]
+                "landing", "client app", "portal", "interface"]
 _BROKER_KW = ["rabbitmq", "kafka", "nats", "message queue", "message broker",
               "broker", "pub/sub", "pubsub", "event stream", "amqp"]
 _STORAGE_KW = ["upload", "file storage", "object storage", "s3", "media",
@@ -87,19 +99,30 @@ def topology_from_prompt_offline(prompt: str) -> Topology:
     )
     topo.services.append(api)
 
-    # database (one, first signal wins)
+    collab = _has(t, _COLLAB_KW)
+
+    # database (one, first explicit signal wins; else infer from product intent).
+    # Collaboration implies shared state, so it also implies persistence.
+    db_type = None
     for ztype, host, kws in _DB_SIGNALS:
         if _has(t, kws):
-            topo.services.append(Service(hostname=host, role=ROLE_DATABASE, type=ztype))
-            api.env["DB_HOST"] = host
-            api.depends_on.append(host)
+            db_type = ztype
             break
+    if db_type is None and (_has(t, _DB_INTENT_KW) or collab):
+        db_type = "postgresql@16"
+        topo.warnings.append("Persistence implied by the description — added Postgres.")
+    if db_type:
+        topo.services.append(Service(hostname="db", role=ROLE_DATABASE, type=db_type))
+        api.env["DB_HOST"] = "db"
+        api.depends_on.append("db")
 
-    # cache — also implied by realtime/websocket presence
-    if _has(t, _CACHE_KW) or _has(t, _WS_KW):
+    # collaboration / realtime → cache for presence & sync
+    if _has(t, _CACHE_KW) or _has(t, _WS_KW) or collab:
         topo.services.append(Service(hostname="cache", role=ROLE_CACHE, type="valkey@7"))
         api.env["CACHE_HOST"] = "cache"
         api.depends_on.append("cache")
+        if collab:
+            topo.warnings.append("Collaboration detected — cache added for presence/live sync.")
 
     if _has(t, _BROKER_KW):
         topo.services.append(Service(hostname="broker", role=ROLE_BROKER, type="nats@2"))
