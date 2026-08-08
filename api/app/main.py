@@ -41,9 +41,16 @@ def generate(req: GenerateRequest):
     if req.mode == "compose":
         topo = parse_compose(req.compose or "", req.project_name or "my-project")
     elif req.mode == "repo":
-        topo = detect_from_filelist(
-            req.files or [], req.project_name or "detected-project", req.file_contents or {}
-        )
+        files, contents = req.files or [], req.file_contents or {}
+        name = req.project_name or "detected-project"
+        if req.repo_url:  # fetch server-side (public GitHub repos)
+            from .core.repo_fetcher import RepoFetchError, fetch_github, parse_github_url
+            try:
+                files, contents = fetch_github(req.repo_url)
+                name = parse_github_url(req.repo_url)[1]
+            except RepoFetchError as e:
+                return GenerateResponse(error=str(e))
+        topo = detect_from_filelist(files, name, contents)
     elif req.mode == "prompt":
         topo = llm.topology_from_prompt(req.prompt or "")
     else:

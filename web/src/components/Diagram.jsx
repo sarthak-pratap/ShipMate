@@ -1,9 +1,7 @@
 import React from "react";
 
-// A dependency-free SVG topology diagram. Lays services out in role-based rows
-// (public → frontend → runtimes → managed) and draws private-network edges.
-// Swap for reactflow later if you want drag/zoom; this keeps the repo runnable
-// with zero extra deps.
+// Neo-brutalist SVG topology diagram: flat fills, 3px black strokes,
+// hard offset shadows, role-based rows (public → frontend → runtimes → managed).
 
 const ROLE_ROW = {
   frontend: 1,
@@ -16,49 +14,51 @@ const ROLE_ROW = {
   search: 3,
 };
 
-const ROLE_COLOR = {
-  frontend: "#34e0d0",
-  api: "#7c5cff",
-  worker: "#9d84ff",
-  database: "#ffbf47",
-  cache: "#b6f24a",
-  storage: "#ff6b8b",
-  broker: "#ff9f43",
-  search: "#4dd0e1",
+const ROLE_FILL = {
+  public: "#2eea8b",
+  frontend: "#4d9fff",
+  api: "#ffd02f",
+  worker: "#b794ff",
+  database: "#ff8a3d",
+  cache: "#ff6b9d",
+  storage: "#2eea8b",
+  broker: "#ff8a3d",
+  search: "#4d9fff",
 };
 
 export default function Diagram({ graph }) {
   if (!graph || !graph.nodes?.length) {
-    return <div className="diagram-empty">Your architecture will appear here.</div>;
+    return <div className="diagram-empty">[ topology renders here ]</div>;
   }
 
-  const W = 720;
-  const rowGap = 120;
-  const nodeW = 150;
-  const nodeH = 56;
+  const W = 760;
+  const rowGap = 118;
+  const nodeW = 158;
+  const nodeH = 58;
+  const SH = 5; // shadow offset
 
-  // group nodes into rows
-  const rows = { 0: [{ id: "__public__", label: "🌐 Public traffic", role: "public" }], 1: [], 2: [], 3: [] };
-  graph.nodes.forEach((n) => {
-    rows[ROLE_ROW[n.role] || 2].push(n);
-  });
+  const rows = {
+    0: [{ id: "__public__", label: "PUBLIC TRAFFIC", subtitle: "https", role: "public" }],
+    1: [], 2: [], 3: [],
+  };
+  graph.nodes.forEach((n) => rows[ROLE_ROW[n.role] ?? 2].push(n));
 
   const pos = {};
   const rowKeys = Object.keys(rows).filter((r) => rows[r].length);
   rowKeys.forEach((r, ri) => {
     const items = rows[r];
-    const totalW = items.length * (nodeW + 30) - 30;
+    const totalW = items.length * (nodeW + 34) - 34;
     const startX = (W - totalW) / 2;
     items.forEach((n, i) => {
-      pos[n.id] = { x: startX + i * (nodeW + 30) + nodeW / 2, y: 40 + ri * rowGap };
+      pos[n.id] = { x: startX + i * (nodeW + 34) + nodeW / 2, y: 44 + ri * rowGap };
     });
   });
 
-  const H = 40 + rowKeys.length * rowGap;
+  const H = 44 + rowKeys.length * rowGap;
 
   return (
     <svg className="diagram" viewBox={`0 0 ${W} ${H}`} width="100%">
-      {/* edges */}
+      {/* edges first */}
       {graph.edges.map((e, i) => {
         const a = pos[e.source];
         const b = pos[e.target];
@@ -68,37 +68,36 @@ export default function Diagram({ graph }) {
           <line
             key={i}
             x1={a.x} y1={a.y + nodeH / 2}
-            x2={b.x} y2={b.y - nodeH / 2}
-            stroke={isPublic ? "#34e0d0" : "#3a3f55"}
-            strokeWidth={isPublic ? 2 : 1.5}
-            strokeDasharray={isPublic ? "4 3" : "0"}
+            x2={b.x} y2={b.y - nodeH / 2 - SH}
+            stroke="#111"
+            strokeWidth={isPublic ? 3 : 2.5}
+            strokeDasharray={isPublic ? "7 5" : "0"}
           />
         );
       })}
       {/* nodes */}
-      {Object.entries(rows).flatMap(([, items]) =>
-        items.map((n) => {
-          const p = pos[n.id];
-          if (!p) return null;
-          const color = n.role === "public" ? "#34e0d0" : ROLE_COLOR[n.role] || "#7c5cff";
-          return (
-            <g key={n.id} transform={`translate(${p.x - nodeW / 2}, ${p.y - nodeH / 2})`}>
-              <rect
-                width={nodeW} height={nodeH} rx="10"
-                fill="#171a28" stroke={color} strokeWidth="1.5"
-              />
-              <text x="14" y="24" fill="#e8eaf2" fontSize="14" fontWeight="600" fontFamily="system-ui">
-                {n.label}
-              </text>
-              {n.subtitle && (
-                <text x="14" y="42" fill="#9aa0b4" fontSize="11" fontFamily="monospace">
-                  {n.subtitle}
-                </text>
-              )}
-            </g>
-          );
-        })
-      )}
+      {Object.values(rows).flat().map((n) => {
+        const p = pos[n.id];
+        if (!p) return null;
+        const fill = ROLE_FILL[n.role] || "#ffd02f";
+        const x = p.x - nodeW / 2;
+        const y = p.y - nodeH / 2;
+        return (
+          <g key={n.id}>
+            {/* hard shadow */}
+            <rect x={x + SH} y={y + SH} width={nodeW} height={nodeH} fill="#111" />
+            <rect x={x} y={y} width={nodeW} height={nodeH} fill={fill} stroke="#111" strokeWidth="3" />
+            <text x={x + 14} y={y + 25} fill="#111" fontSize="14.5" fontWeight="800"
+                  fontFamily="'Space Grotesk', system-ui" style={{ textTransform: "uppercase" }}>
+              {n.label}
+            </text>
+            <text x={x + 14} y={y + 44} fill="#111" fontSize="11"
+                  fontFamily="'IBM Plex Mono', monospace" fontWeight="600">
+              {n.subtitle || ""}
+            </text>
+          </g>
+        );
+      })}
     </svg>
   );
 }

@@ -11,6 +11,7 @@ class GenerateRequest(BaseModel):
     # mode=compose
     compose: Optional[str] = None
     # mode=repo
+    repo_url: Optional[str] = None
     files: Optional[List[str]] = None
     file_contents: Optional[Dict[str, str]] = None
     # mode=prompt
