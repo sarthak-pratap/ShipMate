@@ -56,7 +56,7 @@ def test_managed_type_mapping():
     topo = _topo()
     assert topo.by_hostname("db").type == "postgresql@16"
     # redis maps to Zerops' Valkey
-    assert topo.by_hostname("cache").type == "valkey@7"
+    assert topo.by_hostname("cache").type == "valkey@7.2"
 
 
 def test_roles():

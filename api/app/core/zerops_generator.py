@@ -45,15 +45,28 @@ def build_zerops_yaml(topo: Topology) -> str:
         elif svc.base and svc.base.startswith("nodejs"):
             build_block["cache"] = "node_modules"
 
-        run_block: Dict = {"base": svc.base}
-        if svc.ports:
-            run_block["ports"] = [
-                {"port": p.port, "httpSupport": p.http_support} for p in svc.ports
-            ]
-        if svc.start:
-            run_block["start"] = svc.start
-        if svc.env:
-            run_block["envVariables"] = dict(svc.env)
+        # Frontends: build with node, SERVE STATIC. Never ship a dev server
+        # (`npm run dev`) as the production runtime.
+        is_static_frontend = (
+            svc.role == "frontend"
+            and svc.base and svc.base.startswith("nodejs")
+            and not _looks_ssr(svc)
+        )
+        if is_static_frontend:
+            build_block["deployFiles"] = "dist/~"     # vite/CRA build output
+            run_block: Dict = {"base": "static"}
+            if svc.env:
+                build_block["envVariables"] = dict(svc.env)  # baked at build time
+        else:
+            run_block = {"base": svc.base}
+            if svc.ports:
+                run_block["ports"] = [
+                    {"port": p.port, "httpSupport": p.http_support} for p in svc.ports
+                ]
+            if svc.start:
+                run_block["start"] = svc.start
+            if svc.env:
+                run_block["envVariables"] = dict(svc.env)
 
         setups.append({"setup": svc.hostname, "build": build_block, "run": run_block})
 
@@ -70,11 +83,21 @@ def build_zerops_yaml(topo: Topology) -> str:
     return _dump({"zerops": setups})
 
 
+def _looks_ssr(svc: Service) -> bool:
+    """Next/Nuxt/SSR frontends keep a node runtime; plain vite/CRA go static."""
+    s = (svc.start or "").lower()
+    return any(k in s for k in ("next", "nuxt", "remix", "node server", "ssr"))
+
+
 def build_import_yaml(topo: Topology) -> str:
     """The project-import config — declares every service in the project."""
     services: List[Dict] = []
     for svc in topo.services:
-        entry: Dict = {"hostname": svc.hostname, "type": svc.type}
+        stype = svc.type
+        if (svc.role == "frontend" and svc.base
+                and svc.base.startswith("nodejs") and not _looks_ssr(svc)):
+            stype = "static"   # matches the static run base in zerops.yaml
+        entry: Dict = {"hostname": svc.hostname, "type": stype}
         if svc.is_managed:
             entry["mode"] = "HA" if svc.ha else "NON_HA"
         if svc.public:

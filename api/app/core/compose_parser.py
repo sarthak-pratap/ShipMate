@@ -16,7 +16,7 @@ from typing import Dict, List
 
 import yaml
 
-from .mappings import match_managed, match_runtime
+from .mappings import match_managed, match_runtime, match_unsupported
 from .schema import (
     ROLE_API,
     ROLE_FRONTEND,
@@ -102,6 +102,16 @@ def parse_compose(text: str, project_name: str = "my-project") -> Topology:
                 depends_on=list(cfg.get("depends_on", []) or []),
             )
             topo.services.append(svc)
+            continue
+
+        unsupported = match_unsupported(image) if image else None
+        if unsupported:
+            ztype, role, note = unsupported
+            topo.warnings.append(f"service '{name}': {note}")
+            topo.services.append(Service(
+                hostname=name, role=role, type=ztype,
+                depends_on=list(cfg.get("depends_on", []) or []),
+            ))
             continue
 
         # runtime service (either an explicit runtime image or a local build)

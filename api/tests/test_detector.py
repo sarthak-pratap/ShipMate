@@ -136,3 +136,68 @@ def test_infra_only_compose_merges_with_code():
     # no duplicate db/cache, and api wired to them
     assert sum(1 for s in topo.services if s.role == "database") == 1
     assert "db" in names["api"].depends_on and "cache" in names["api"].depends_on
+
+
+def test_frontend_generates_static_not_dev_server():
+    """A vite frontend must build to static — never run `npm run dev` in prod."""
+    import yaml as _yaml
+    from app.core.zerops_generator import build_zerops_yaml, build_import_yaml
+    topo = detect_from_filelist(
+        ["frontend/package.json", "backend/requirements.txt"],
+        "x",
+        {
+            "frontend/package.json": '{"scripts":{"dev":"vite","build":"vite build"},"devDependencies":{"vite":"^5"}}',
+            "backend/requirements.txt": "fastapi\nuvicorn\n",
+        },
+    )
+    zy = build_zerops_yaml(topo)
+    assert "npm run dev" not in zy
+    doc = _yaml.safe_load(zy)
+    web = next(s for s in doc["zerops"] if s["setup"] == "web")
+    assert web["run"]["base"] == "static"
+    assert web["build"]["deployFiles"] == "dist/~"
+    imp = _yaml.safe_load(build_import_yaml(topo))
+    web_imp = next(s for s in imp["services"] if s["hostname"] == "web")
+    assert web_imp["type"] == "static"
+
+
+def test_worker_gets_worker_start_and_no_ports():
+    """Workers run their script (python worker.py), never a copy of the API server."""
+    topo = detect_from_filelist(
+        ["api/requirements.txt", "worker/requirements.txt", "worker/worker.py"],
+        "x",
+        {
+            "api/requirements.txt": "fastapi\nuvicorn\n",
+            "worker/requirements.txt": "redis\n",
+        },
+    )
+    w = topo.by_hostname("worker")
+    assert w.start == "python worker.py"
+    assert "uvicorn" not in (w.start or "")
+    assert w.ports == []
+
+
+def test_unsupported_managed_images_substituted():
+    """mongo/rabbitmq have no managed Zerops service — substitute + warn."""
+    from app.core.compose_parser import parse_compose
+    topo = parse_compose(
+        "services:\n  db:\n    image: mongo:7\n  mq:\n    image: rabbitmq:3\n"
+    )
+    assert topo.by_hostname("db").type == "postgresql@16"
+    assert topo.by_hostname("mq").type == "nats@2.10"
+    assert any("MongoDB" in w for w in topo.warnings)
+    assert any("RabbitMQ" in w for w in topo.warnings)
+
+
+def test_env_example_secrets_flagged():
+    topo = detect_from_filelist(
+        ["requirements.txt", ".env.example"],
+        "x",
+        {
+            "requirements.txt": "fastapi\n",
+            ".env.example": "AZURE_OPENAI_API_KEY=xxx\nAZURE_OPENAI_ENDPOINT=https://x\nDEBUG=1\n",
+        },
+    )
+    note = next((w for w in topo.warnings if "envSecrets" in w), "")
+    assert "AZURE_OPENAI_API_KEY" in note
+    assert "DEBUG" not in note

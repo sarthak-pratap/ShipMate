@@ -29,7 +29,7 @@ Schema:
       "hostname": "api",
       "role": "frontend|api|worker|database|cache|storage|broker|search",
       "runtime_base": "python@3.12 | nodejs@22 | go@1 | ...",  // runtimes only
-      "managed_type": "postgresql@16 | valkey@7 | ...",        // managed only
+      "managed_type": "postgresql@16 | valkey@7.2 | keydb@6 | mariadb@10.4 | nats@2.10 | kafka@3.9 | elasticsearch@8.16 | qdrant@1.12 | object-storage",  // managed only — ONLY these exist on Zerops (no MongoDB, no RabbitMQ)
       "port": 8000,            // runtimes that serve traffic
       "public": true,          // exposed to the internet
       "start": "uvicorn app.main:app --host 0.0.0.0 --port 8000",
@@ -69,6 +69,7 @@ def topology_from_prompt(prompt: str) -> Topology:
             {"role": "system", "content": _SYSTEM},
             {"role": "user", "content": prompt},
         ],
+        temperature=0.2,
         response_format={"type": "json_object"},
     )
     raw = resp.choices[0].message.content
@@ -133,7 +134,7 @@ conservative: only act when the evidence in the summary supports it.
 Return ONLY JSON:
 {
   "fill": [ {"hostname": "app", "start": "...", "port": 8000, "runtime_base": "python@3.12"} ],
-  "add":  [ {"hostname": "cache", "role": "cache", "managed_type": "valkey@7",
+  "add":  [ {"hostname": "cache", "role": "cache", "managed_type": "valkey@7.2",
              "runtime_base": null, "port": null, "public": false, "depends_on": ["app"]} ],
   "notes": ["one short human-readable reason per change"]
 }
@@ -167,7 +168,6 @@ def enhance_topology(topo: "Topology", repo_summary: str) -> dict:
             {"role": "user", "content": user},
         ],
         temperature=0.1,
-        extra_body={"reasoning_effort": "none"},
         response_format={"type": "json_object"},
     )
     return json.loads(resp.choices[0].message.content)

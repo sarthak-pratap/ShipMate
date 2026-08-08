@@ -14,7 +14,7 @@ def test_realtime_chat():
     s = _roles(t)
     assert "api" in s
     assert s["db"].type == "postgresql@16"
-    assert s["cache"].type == "valkey@7"          # redis -> valkey
+    assert s["cache"].type == "valkey@7.2"          # redis -> valkey
     assert any("realtime" in w.lower() for w in t.warnings)
 
 
@@ -36,7 +36,9 @@ def test_node_stack_detected():
     t = gen("an express + typescript REST api with mongodb")
     s = _roles(t)
     assert s["api"].base == "nodejs@22"
-    assert s["db"].type == "mongodb@7"
+    # Zerops has no managed MongoDB — substituted with Postgres + a note
+    assert s["db"].type == "postgresql@16"
+    assert any("MongoDB" in w for w in t.warnings)
 
 
 def test_frontend_wired_to_api():
@@ -63,7 +65,7 @@ def test_apply_enhancement_fills_and_adds():
     ])
     data = {
         "fill": [{"hostname": "app", "start": "gunicorn app:app", "port": 8080}],
-        "add": [{"hostname": "cache", "role": "cache", "managed_type": "valkey@7",
+        "add": [{"hostname": "cache", "role": "cache", "managed_type": "valkey@7.2",
                  "depended_by": ["app"]}],
         "notes": ["celery in deps implies a broker/cache"],
     }

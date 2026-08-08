@@ -18,23 +18,34 @@ from .schema import (
 )
 
 # image prefix -> (zerops type, role, ha_capable)
+# Types VERIFIED against docs.zerops.io (llms-full.txt) — only versions Zerops
+# actually offers. Do not invent versions: an unknown type crashes the import.
 MANAGED_IMAGE_MAP = {
     "postgres": ("postgresql@16", ROLE_DATABASE, True),
     "postgresql": ("postgresql@16", ROLE_DATABASE, True),
-    "mariadb": ("mariadb@11", ROLE_DATABASE, True),
-    "mysql": ("mariadb@11", ROLE_DATABASE, True),   # Zerops offers MariaDB
-    "mongo": ("mongodb@7", ROLE_DATABASE, True),
-    "mongodb": ("mongodb@7", ROLE_DATABASE, True),
-    "redis": ("valkey@7", ROLE_CACHE, True),        # Zerops uses Valkey/KeyDB
-    "valkey": ("valkey@7", ROLE_CACHE, True),
+    "mariadb": ("mariadb@10.4", ROLE_DATABASE, True),
+    "mysql": ("mariadb@10.4", ROLE_DATABASE, True),   # Zerops offers MariaDB
+    "redis": ("valkey@7.2", ROLE_CACHE, True),        # Zerops uses Valkey/KeyDB
+    "valkey": ("valkey@7.2", ROLE_CACHE, True),
     "keydb": ("keydb@6", ROLE_CACHE, True),
-    "elasticsearch": ("elasticsearch@8", ROLE_SEARCH, False),
-    "meilisearch": ("meilisearch@1", ROLE_SEARCH, False),
-    "typesense": ("typesense@0", ROLE_SEARCH, False),
-    "rabbitmq": ("rabbitmq@3", ROLE_BROKER, False),
-    "nats": ("nats@2", ROLE_BROKER, False),
-    "kafka": ("kafka@3", ROLE_BROKER, False),
+    "elasticsearch": ("elasticsearch@8.16", ROLE_SEARCH, False),
+    "meilisearch": ("meilisearch@1.20", ROLE_SEARCH, False),
+    "typesense": ("typesense@27.1", ROLE_SEARCH, False),
+    "qdrant": ("qdrant@1.12", ROLE_SEARCH, False),
+    "clickhouse": ("clickhouse@25.3", ROLE_DATABASE, False),
+    "nats": ("nats@2.10", ROLE_BROKER, False),
+    "kafka": ("kafka@3.9", ROLE_BROKER, False),
     "minio": ("object-storage", ROLE_STORAGE, False),
+}
+
+# images Zerops has NO managed equivalent for -> (substitute, human note)
+UNSUPPORTED_MANAGED = {
+    "mongo": ("postgresql@16", ROLE_DATABASE,
+              "Zerops has no managed MongoDB — substituted PostgreSQL; adapt your data layer or run Mongo in a container."),
+    "mongodb": ("postgresql@16", ROLE_DATABASE,
+                "Zerops has no managed MongoDB — substituted PostgreSQL; adapt your data layer or run Mongo in a container."),
+    "rabbitmq": ("nats@2.10", ROLE_BROKER,
+                 "Zerops has no managed RabbitMQ — substituted NATS; adapt your client or run RabbitMQ in a container."),
 }
 
 # runtime image prefix -> (zerops base, default_start_hint)
@@ -77,6 +88,15 @@ def _strip_image(image: str) -> str:
 def match_managed(image: str) -> Optional[Tuple[str, str, bool]]:
     key = _strip_image(image)
     for prefix, val in MANAGED_IMAGE_MAP.items():
+        if key == prefix or key.startswith(prefix):
+            return val
+    return None
+
+
+def match_unsupported(image: str) -> Optional[Tuple[str, str, str]]:
+    """Images with no managed Zerops equivalent -> (substitute, role, note)."""
+    key = _strip_image(image)
+    for prefix, val in UNSUPPORTED_MANAGED.items():
         if key == prefix or key.startswith(prefix):
             return val
     return None

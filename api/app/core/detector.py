@@ -145,6 +145,31 @@ def detect_from_filelist(
             else:
                 attach.depends_on.append(m.hostname)
 
+    # --- secrets awareness: surface keys from .env.example that must be set
+    # as envSecrets in the Zerops GUI (we never bake secret values into YAML)
+    env_example = None
+    for key in contents.raw:
+        if key.lower().endswith(".env.example"):
+            env_example = contents.raw[key]
+            break
+    if env_example:
+        secretish = []
+        for line in env_example.splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k = line.split("=", 1)[0].strip()
+            if any(t in k.upper() for t in ("KEY", "SECRET", "TOKEN", "PASSWORD",
+                                             "PASS", "ENDPOINT", "API", "DSN")):
+                secretish.append(k)
+        if secretish:
+            topo.warnings.append(
+                "Secrets found in .env.example (" + ", ".join(secretish[:6]) +
+                (", …" if len(secretish) > 6 else "") +
+                ") — set these as envSecrets on the runtime services in the "
+                "Zerops GUI after import; they are intentionally not in the YAML."
+            )
+
     # --- dependency scan → managed services (skip roles already present)
     blob = contents.blob()
     have = {s.role for s in topo.services}
@@ -156,7 +181,7 @@ def detect_from_filelist(
             attach.env.setdefault("DB_HOST", "db")
             attach.depends_on.append("db")
         if "cache" not in have and _mentions(blob, "redis", "ioredis", "valkey", "celery"):
-            topo.services.append(Service(hostname="cache", role="cache", type="valkey@7"))
+            topo.services.append(Service(hostname="cache", role="cache", type="valkey@7.2"))
             attach.env.setdefault("CACHE_HOST", "cache")
             attach.depends_on.append("cache")
         if "storage" not in have and _mentions(blob, "boto3", "minio", "aws-sdk", "s3client"):
@@ -233,18 +258,29 @@ def _detect_service(dir_prefix: str, files: List[str], contents: _Contents,
     elif any(w in dname for w in _WORKER_DIRS):
         role = ROLE_WORKER
 
-    # refine from package.json
+    # refine from package.json — NEVER pick `dev` scripts (dev servers don't
+    # belong in production; frontends get built to static instead)
     pkg_text = contents.get(f"{pfx}package.json")
     if base and base.startswith("nodejs") and pkg_text:
         pkg = _safe_json(pkg_text) or {}
         scripts = pkg.get("scripts", {})
         if not (df and df.get("start")):
-            start = "npm run start" if "start" in scripts else ("npm run dev" if "dev" in scripts else start)
+            if "start" in scripts:
+                start = "npm run start"
+            elif "serve" in scripts:
+                start = "npm run serve"
         deps = {**pkg.get("dependencies", {}), **pkg.get("devDependencies", {})}
         if "vite" in deps and not any(d in deps for d in ("express", "fastify", "koa", "next")):
             role = ROLE_FRONTEND
 
-    if port is None and base:
+    # workers are background processes: no ports, and their start command is
+    # the worker script — not a copy of the API's server command
+    if role == ROLE_WORKER:
+        port = None
+        if not (df and df.get("start")):
+            start = _worker_start(base, scoped)
+
+    if port is None and base and role != ROLE_WORKER:
         port = 8000 if base.startswith("python") else 3000
 
     return Service(
@@ -258,6 +294,24 @@ def _detect_service(dir_prefix: str, files: List[str], contents: _Contents,
         env=env,
         public=role in (ROLE_FRONTEND, ROLE_API),
     )
+
+
+def _worker_start(base: Optional[str], scoped_files: set) -> Optional[str]:
+    """Pick a sensible background-process start command from real files."""
+    lower = {s.lower() for s in scoped_files}
+    if base and base.startswith("python"):
+        for cand in ("worker.py", "main.py", "run.py", "app.py", "tasks.py"):
+            if cand in lower:
+                return f"python {cand}"
+        return "python worker.py"
+    if base and base.startswith("nodejs"):
+        for cand in ("worker.js", "index.js", "main.js"):
+            if cand in lower:
+                return f"node {cand}"
+        return "node worker.js"
+    if base and base.startswith("go"):
+        return "./app"
+    return None
 
 
 def _wire_frontend_to_api(topo: Topology) -> None:

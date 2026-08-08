@@ -29,13 +29,16 @@ from .schema import (
     Topology,
 )
 
-# (role, hostname, type, [keywords]) — first match wins per group
+# (type, hostname, [keywords]) — first match wins per group.
+# Types verified against docs.zerops.io. NOTE: Zerops has no managed MongoDB —
+# mongo-ish prompts get Postgres plus an explanatory note (added below).
 _DB_SIGNALS: List[Tuple[str, str, List[str]]] = [
-    ("mongodb@7", "db", ["mongo", "mongodb", "document db", "nosql"]),
-    ("mariadb@11", "db", ["mysql", "mariadb"]),
+    ("postgresql@16", "db", ["mongo", "mongodb", "document db", "nosql"]),
+    ("mariadb@10.4", "db", ["mysql", "mariadb"]),
     ("postgresql@16", "db", ["postgres", "postgresql", "pgvector", "sql", "relational",
                               "database", "db", "rag", "embedding", "vector"]),
 ]
+_MONGO_KW = ["mongo", "mongodb", "document db", "nosql"]
 _CACHE_KW = ["redis", "valkey", "cache", "session", "presence", "rate limit",
              "rate-limit", "queue", "celery"]
 # product-intent words that imply persistence even when no DB tech is named
@@ -115,17 +118,22 @@ def topology_from_prompt_offline(prompt: str) -> Topology:
         topo.services.append(Service(hostname="db", role=ROLE_DATABASE, type=db_type))
         api.env["DB_HOST"] = "db"
         api.depends_on.append("db")
+        if _has(t, _MONGO_KW):
+            topo.warnings.append(
+                "Zerops has no managed MongoDB — used PostgreSQL instead; "
+                "adapt your data layer or run Mongo in a container."
+            )
 
     # collaboration / realtime → cache for presence & sync
     if _has(t, _CACHE_KW) or _has(t, _WS_KW) or collab:
-        topo.services.append(Service(hostname="cache", role=ROLE_CACHE, type="valkey@7"))
+        topo.services.append(Service(hostname="cache", role=ROLE_CACHE, type="valkey@7.2"))
         api.env["CACHE_HOST"] = "cache"
         api.depends_on.append("cache")
         if collab:
             topo.warnings.append("Collaboration detected — cache added for presence/live sync.")
 
     if _has(t, _BROKER_KW):
-        topo.services.append(Service(hostname="broker", role=ROLE_BROKER, type="nats@2"))
+        topo.services.append(Service(hostname="broker", role=ROLE_BROKER, type="nats@2.10"))
         api.depends_on.append("broker")
 
     if _has(t, _STORAGE_KW):
@@ -133,7 +141,7 @@ def topology_from_prompt_offline(prompt: str) -> Topology:
         api.depends_on.append("storage")
 
     if _has(t, _SEARCH_KW):
-        topo.services.append(Service(hostname="search", role=ROLE_SEARCH, type="elasticsearch@8"))
+        topo.services.append(Service(hostname="search", role=ROLE_SEARCH, type="elasticsearch@8.16"))
         api.depends_on.append("search")
 
     # worker
