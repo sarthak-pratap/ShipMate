@@ -69,6 +69,25 @@ env, build-time) to the public URL of the `api` service, then re-push `web`.
 - `GET https://<api-subdomain>/api/health` → `{"status":"ok", ...}`.
 - Generate a config from the UI and confirm the diagram + YAML render.
 
+## ⚠ The subdomain-before-deploy 502 gotcha (we hit this)
+
+The Zerops L7 route for a subdomain is generated from the service's **declared
+HTTP port at the moment subdomain access is activated**. Our import file
+intentionally declares no ports (they come from each `zerops.yaml` at deploy) —
+so if you enable the subdomain in the GUI **before the first successful
+deploy**, the route binds to a default port, nothing listens there, and you get
+a **502 Bad Gateway** with *zero* requests reaching your app.
+
+Telltale sign: the subdomain URL has **no port suffix** (e.g.
+`api-xxxx.prg1.zerops.app` instead of `api-xxxx-8000.prg1.zerops.app`).
+
+**Fix:** GUI → service → Public access: disable the Zerops subdomain →
+confirm the current deploy is active (runtime log shows your server on its
+port) → re-enable the subdomain. If it doesn't regenerate, toggle off →
+`zcli push` once more → toggle on.
+
+**Rule of thumb: deploy first, enable the subdomain second.**
+
 ## Troubleshooting
 
 - **Build fails on `api`/`worker`** — check the build log; the base is

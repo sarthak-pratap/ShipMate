@@ -74,9 +74,12 @@ flowchart LR
 
 ## Docs
 
+- [`FEATURES.md`](FEATURES.md) — **the complete product reference**: every mode,
+  rule, button, endpoint, fallback and limit
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — the design in depth: the one-IR idea,
   detection heuristics, monorepo handling, the linter (read this to understand the code)
 - [`DEPLOY.md`](DEPLOY.md) — step-by-step Zerops deployment with `zcli`
+  (including the subdomain-before-deploy 502 gotcha)
 - [`AI_DISCLOSURE.md`](AI_DISCLOSURE.md) — AI-usage disclosure (challenge rules)
 
 ## Features
