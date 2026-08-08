@@ -50,22 +50,27 @@ def available() -> bool:
 
 
 def _get_client():
-    endpoint = os.environ["AZURE_OPENAI_ENDPOINT"].rstrip("/")
-    api_key = os.environ["AZURE_OPENAI_API_KEY"]
+    endpoint = os.environ["AZURE_OPENAI_ENDPOINT"].strip().strip('"').strip("'")
+    api_key = os.environ["AZURE_OPENAI_API_KEY"].strip().strip('"').strip("'")
     
-    if "services.ai.azure.com" in endpoint:
+    from urllib.parse import urlparse
+    parsed = urlparse(endpoint)
+    host = parsed.netloc or parsed.path.split('/')[0]
+    scheme = parsed.scheme or "https"
+    
+    if "services.ai.azure.com" in host:
         from openai import OpenAI
-        # Extract the base URL for MaaS (e.g. https://...services.ai.azure.com/models)
-        base_url = endpoint
-        if not base_url.endswith("/models") and not base_url.endswith("/models/chat/completions"):
-            base_url += "/models"
-        elif base_url.endswith("/chat/completions"):
-            base_url = base_url.replace("/chat/completions", "")
-        return OpenAI(base_url=base_url, api_key=api_key)
+        base_url = f"{scheme}://{host}/openai/v1"
+        return OpenAI(
+            base_url=base_url,
+            api_key=api_key,
+            default_headers={"api-key": api_key},
+        )
     else:
         from openai import AzureOpenAI
+        clean_endpoint = f"{scheme}://{host}"
         return AzureOpenAI(
-            azure_endpoint=endpoint,
+            azure_endpoint=clean_endpoint,
             api_key=api_key,
             api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-06-01"),
         )
