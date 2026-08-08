@@ -66,6 +66,38 @@ Priority order, most authoritative first:
 4. Language marker (`package.json`, `requirements.txt`, `go.mod`, …).
 5. Dependency scan: Postgres/Redis/S3 client libraries → managed services.
 
+### Monorepo build contexts (learned from a real deploy failure)
+
+Zerops build commands run in `/build/source` — the repo root as pushed. A
+monorepo service whose code lives in `api/` therefore cannot run a bare
+`pip install -r requirements.txt`. Each `Service` carries a `src_dir`, and the
+generator uses it everywhere:
+
+- build commands run inside the dir via a single literal shell block
+  (`cd api` + the steps — emitted as a YAML `|` block, since quoted style
+  would fold the newlines and break the shell)
+- `deployFiles: api/~` ships the *contents* of the dir (Zerops' `~` shorten
+  syntax), so `run.start` executes against the expected layout
+- frontends deploy `<dir>/dist/~`; node caches point at `<dir>/node_modules`
+
+### The Python dependency pattern (build ≠ runtime)
+
+Zerops builds and runs in **separate containers**. A `pip install` in
+`build.buildCommands` installs into the build container's site-packages, which
+`deployFiles` never ships — the app then crashes at runtime with
+`ModuleNotFoundError`. The official pattern (which ShipMate emits, and uses for
+its own services) is:
+
+```yaml
+build:
+  deployFiles: ./            # or <dir>/~ in a monorepo
+  addToRunPrepare:
+    - requirements.txt       # carried to the runtime-prepare container
+run:
+  prepareCommands:
+    - python3 -m pip install --ignore-installed -r requirements.txt
+```
+
 ## 3. The generator
 
 [`core/zerops_generator.py`](api/app/core/zerops_generator.py) emits three
@@ -100,11 +132,16 @@ ShipMate deploys as **five services over the private network** — which is both
 the product's dogfood and the answer to the challenge's "meaningful Zerops use"
 criterion.
 
-```
-public ─► web (static, React/Vite)
-              │  (private network)
-              ├─ api    (python@3.12, FastAPI)  ── db (postgresql@16)
-              └─ worker (python, repo analysis) ── cache (valkey@7)
+```mermaid
+flowchart TD
+    P(("🌐 public")):::pub -.-> WEB["web · static (React/Vite build)"]
+    P -.-> API["api · python@3.12 FastAPI"]
+    WEB --> API
+    API --> DB[("db · postgresql@16")]
+    API --> C[("cache · valkey@7.2")]
+    WK["worker · python@3.12"] --> C
+    WK --> DB
+    classDef pub fill:#2eea8b,stroke:#111,stroke-width:2px,color:#111
 ```
 
 - **web** — built to static assets, `enableSubdomainAccess`.
@@ -128,6 +165,9 @@ the Azure keys are absent.
 
 ## 7. Tests
 
-[`api/tests/`](api/tests) — the compose parser, detector (incl. the Dockerfile
-parser and monorepo handling), the linter, and the LLM JSON parser are all
-unit-tested and run offline (`make test`).
+[`api/tests/`](api/tests) — 42 tests, all offline (`make test`): the compose
+parser, the detector (Dockerfile parsing, monorepo handling, build contexts,
+infra-only compose merging), the linter + score, the offline prompt parser, the
+AI-enhancement merge (including its never-overwrite guard), persistence
+round-trips, and the deploy-wizard script builder. Several are regression tests
+from real deploy failures — see the commit history for the war stories.

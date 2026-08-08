@@ -21,7 +21,7 @@ zcli project project-import zerops-project-import.yml
 ```
 
 This creates the `shipmate` project with `web` (static), `api` (python@3.12),
-`worker` (python@3.12), `db` (postgresql@16) and `cache` (valkey@7), wired on a
+`worker` (python@3.12), `db` (postgresql@16) and `cache` (valkey@7.2), wired on a
 private network.
 
 ## 3. Add secrets (Azure AI Foundry — for prompt mode)
