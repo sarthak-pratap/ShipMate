@@ -49,20 +49,35 @@ def available() -> bool:
     )
 
 
+def _get_client():
+    endpoint = os.environ["AZURE_OPENAI_ENDPOINT"].rstrip("/")
+    api_key = os.environ["AZURE_OPENAI_API_KEY"]
+    
+    if "services.ai.azure.com" in endpoint:
+        from openai import OpenAI
+        # Extract the base URL for MaaS (e.g. https://...services.ai.azure.com/models)
+        base_url = endpoint
+        if not base_url.endswith("/models") and not base_url.endswith("/models/chat/completions"):
+            base_url += "/models"
+        elif base_url.endswith("/chat/completions"):
+            base_url = base_url.replace("/chat/completions", "")
+        return OpenAI(base_url=base_url, api_key=api_key)
+    else:
+        from openai import AzureOpenAI
+        return AzureOpenAI(
+            azure_endpoint=endpoint,
+            api_key=api_key,
+            api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-06-01"),
+        )
+
 def topology_from_prompt(prompt: str) -> Topology:
     if not available():
         raise RuntimeError(
             "Azure OpenAI is not configured. Set AZURE_OPENAI_ENDPOINT, "
             "AZURE_OPENAI_API_KEY and AZURE_OPENAI_DEPLOYMENT."
         )
-    # imported lazily so the rest of the app runs without the SDK installed
-    from openai import AzureOpenAI
 
-    client = AzureOpenAI(
-        azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
-        api_key=os.environ["AZURE_OPENAI_API_KEY"],
-        api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-06-01"),
-    )
+    client = _get_client()
     resp = client.chat.completions.create(
         model=os.environ["AZURE_OPENAI_DEPLOYMENT"],
         messages=[
@@ -149,13 +164,7 @@ def enhance_topology(topo: "Topology", repo_summary: str) -> dict:
     """
     if not available():
         raise RuntimeError("Azure OpenAI is not configured.")
-    from openai import AzureOpenAI
-
-    client = AzureOpenAI(
-        azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
-        api_key=os.environ["AZURE_OPENAI_API_KEY"],
-        api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-06-01"),
-    )
+    client = _get_client()
     current = _topo_to_json(topo)
     user = (
         f"Detected topology:\n{json.dumps(current, indent=2)}\n\n"

@@ -4,6 +4,7 @@ pydantic==2.9.2
 PyYAML==6.0.2
 # prompt mode (Mode 1) — Azure AI Foundry / Azure OpenAI
 openai==1.51.0
+httpx<0.28.0
 # persistence (optional; app falls back to in-memory if absent/unset)
 psycopg[binary]==3.2.3
 redis==5.0.8

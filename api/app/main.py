@@ -31,6 +31,7 @@ app.add_middleware(
 )
 
 
+@app.get("/")
 @app.get("/api/health")
 def health():
     return {"status": "ok", "linter_rules": rule_count(), "llm_ready": llm.available()}

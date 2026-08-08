@@ -16,7 +16,7 @@ zerops:
       ports:
         - port: 8000
           httpSupport: true
-      start: uvicorn app.main:app --host 0.0.0.0 --port 8000
+      start: "uvicorn app.main:app --host 0.0.0.0 --port 8000"
       envVariables:
         DB_HOST: db
         DB_PORT: "5432"

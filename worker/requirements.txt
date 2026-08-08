@@ -1,4 +1,6 @@
 # worker shares the API's core package at build time; these are its runtime deps
 PyYAML==6.0.2
 redis==5.0.8
+# AI integration
 openai==1.51.0
+httpx<0.28.0

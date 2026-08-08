@@ -1,0 +1,41 @@
+zerops:
+  - setup: api
+    build:
+      base: python@3.12
+      deployFiles: api/~
+      addToRunPrepare:
+        - api/requirements.txt
+    run:
+      base: python@3.12
+      prepareCommands:
+        - python3 -m pip install --ignore-installed -r api/requirements.txt
+      ports:
+        - port: 8000
+          httpSupport: true
+      start: "uvicorn app.main:app --host :: --port 8000"
+      envVariables:
+        DB_HOST: db
+        CACHE_HOST: cache
+  - setup: web
+    build:
+      base: nodejs@22
+      buildCommands:
+        - |-
+          cd web
+          npm ci
+          npm run build
+      deployFiles: web/dist/~
+      cache: web/node_modules
+    run:
+      base: static
+  - setup: worker
+    build:
+      base: python@3.12
+      deployFiles: worker/~
+      addToRunPrepare:
+        - worker/requirements.txt
+    run:
+      base: python@3.12
+      prepareCommands:
+        - python3 -m pip install --ignore-installed -r worker/requirements.txt
+      start: python worker.py

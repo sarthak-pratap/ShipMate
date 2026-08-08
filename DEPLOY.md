@@ -63,6 +63,8 @@ zcli push --serviceId <worker-id>   --workingDir worker
 The `web` build reads `VITE_API_BASE` at build time. Set it (GUI → web service →
 env, build-time) to the public URL of the `api` service, then re-push `web`.
 
+> **CRITICAL WARNING:** You **MUST** deploy a service (`zcli push`) *before* enabling its Zerops subdomain in the GUI. The subdomain route is generated based on the active deployment's declared ports. If you enable the subdomain *before* the first successful push, NGINX will default to port 80, causing persistent `502 Bad Gateway` errors because it won't be able to reach your container (e.g. Uvicorn on 8000). If this happens, disable the subdomain, deploy, and then re-enable it.
+
 ## 6. Verify
 
 - Open the `web` service's subdomain URL — the app should load.
