@@ -53,10 +53,14 @@ def _get_client():
     endpoint = os.environ["AZURE_OPENAI_ENDPOINT"].strip().strip('"').strip("'")
     api_key = os.environ["AZURE_OPENAI_API_KEY"].strip().strip('"').strip("'")
     
+    import httpx
     from urllib.parse import urlparse
     parsed = urlparse(endpoint)
     host = parsed.netloc or parsed.path.split('/')[0]
     scheme = parsed.scheme or "https"
+    
+    # Bypass any container proxy environment variables (e.g. HTTP_PROXY/HTTPS_PROXY in cloud environments)
+    http_client = httpx.Client(trust_env=False)
     
     if "services.ai.azure.com" in host:
         from openai import OpenAI
@@ -65,6 +69,7 @@ def _get_client():
             base_url=base_url,
             api_key=api_key,
             default_headers={"api-key": api_key},
+            http_client=http_client,
         )
     else:
         from openai import AzureOpenAI
@@ -73,6 +78,7 @@ def _get_client():
             azure_endpoint=clean_endpoint,
             api_key=api_key,
             api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-06-01"),
+            http_client=http_client,
         )
 
 def topology_from_prompt(prompt: str) -> Topology:
