@@ -1,0 +1,28 @@
+# ShipMate API — Zerops build/run config.
+# This is ShipMate's OWN deployment config (and a live example of the exact
+# output the tool generates). Referenced by the `api` service in the project
+# import file at the repo root.
+zerops:
+  - setup: api
+    build:
+      base: python@3.12
+      buildCommands:
+        - pip install -r requirements.txt
+      deployFiles: ./
+      cache: ~/.cache/pip
+    run:
+      base: python@3.12
+      ports:
+        - port: 8000
+          httpSupport: true
+      start: uvicorn app.main:app --host 0.0.0.0 --port 8000
+      envVariables:
+        DB_HOST: db
+        DB_PORT: "5432"
+        DB_NAME: shipmate
+        DB_USER: shipmate
+        CACHE_HOST: cache
+        # secrets come from envSecrets on the service, referenced as ${...}
+        AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT}
+        AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+        AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT}

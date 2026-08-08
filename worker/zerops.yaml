@@ -1,0 +1,21 @@
+# ShipMate worker — Zerops build/run config.
+# No public ports: it runs on the private network, pulling jobs from the cache.
+zerops:
+  - setup: worker
+    build:
+      base: python@3.12
+      prepareCommands:
+        - sudo apt-get update && sudo apt-get install -y git
+      buildCommands:
+        - pip install -r requirements.txt
+      deployFiles: ./
+      cache: ~/.cache/pip
+    run:
+      base: python@3.12
+      start: python worker.py
+      envVariables:
+        CACHE_HOST: cache
+        CACHE_PORT: "6379"
+        AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT}
+        AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+        AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT}

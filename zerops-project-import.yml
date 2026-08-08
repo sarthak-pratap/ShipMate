@@ -1,0 +1,43 @@
+# ShipMate — Zerops project import.
+# Declares all five services. Import once to create the project, then each
+# runtime service deploys using its own zerops.yaml (web/, api/, worker/).
+#
+#   zcli project project-import zerops-project-import.yml
+#
+project:
+  name: shipmate
+
+services:
+  # ---- public frontend (React + Vite, built to static) ----
+  - hostname: web
+    type: static
+    enableSubdomainAccess: true
+
+  # ---- API (Python / FastAPI) ----
+  - hostname: api
+    type: python@3.12
+    enableSubdomainAccess: true
+    minContainers: 1
+    envSecrets:
+      AZURE_OPENAI_ENDPOINT: <fill-in-zerops-gui>
+      AZURE_OPENAI_API_KEY: <fill-in-zerops-gui>
+      AZURE_OPENAI_DEPLOYMENT: <fill-in-zerops-gui>
+
+  # ---- worker (Python; private only, no subdomain) ----
+  - hostname: worker
+    type: python@3.12
+    minContainers: 1
+    envSecrets:
+      AZURE_OPENAI_ENDPOINT: <fill-in-zerops-gui>
+      AZURE_OPENAI_API_KEY: <fill-in-zerops-gui>
+      AZURE_OPENAI_DEPLOYMENT: <fill-in-zerops-gui>
+
+  # ---- managed Postgres (history / saved configs) ----
+  - hostname: db
+    type: postgresql@16
+    mode: NON_HA          # bump to HA if you want failover during judging
+
+  # ---- managed Valkey (cache + job queue + rate-limit) ----
+  - hostname: cache
+    type: valkey@7
+    mode: NON_HA

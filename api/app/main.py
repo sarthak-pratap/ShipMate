@@ -1,0 +1,68 @@
+"""ShipMate API — FastAPI entrypoint.
+
+Endpoints:
+  GET  /api/health              liveness (used by Zerops + local checks)
+  POST /api/generate            {mode, ...} -> {zerops_yaml, import_yaml, graph, lint, warnings}
+  POST /api/lint                {zerops_yaml?} deterministic re-lint of a topology
+  GET  /api/history             recent generations (Postgres-backed, in-memory fallback)
+
+The heavy lifting lives in app.core.* — this layer is thin on purpose.
+"""
+from __future__ import annotations
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from .core import llm
+from .core.compose_parser import parse_compose
+from .core.detector import detect_from_filelist
+from .core.linter import lint, rule_count
+from .core.zerops_generator import generate_all
+from .models import GenerateRequest, GenerateResponse
+from . import store
+
+app = FastAPI(title="ShipMate API", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # tighten to the frontend origin in production
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/api/health")
+def health():
+    return {"status": "ok", "linter_rules": rule_count(), "llm_ready": llm.available()}
+
+
+@app.post("/api/generate", response_model=GenerateResponse)
+def generate(req: GenerateRequest):
+    if req.mode == "compose":
+        topo = parse_compose(req.compose or "", req.project_name or "my-project")
+    elif req.mode == "repo":
+        topo = detect_from_filelist(
+            req.files or [], req.project_name or "detected-project", req.file_contents or {}
+        )
+    elif req.mode == "prompt":
+        topo = llm.topology_from_prompt(req.prompt or "")
+    else:
+        return GenerateResponse(error=f"unknown mode '{req.mode}'")
+
+    result = generate_all(topo)
+    findings = lint(topo)
+    record = store.save_generation(topo.project_name, req.mode, result, findings)
+    return GenerateResponse(
+        id=record["id"],
+        project_name=topo.project_name,
+        zerops_yaml=result["zerops_yaml"],
+        import_yaml=result["import_yaml"],
+        graph=result["graph"],
+        lint=findings,
+        warnings=result["warnings"],
+    )
+
+
+@app.get("/api/history")
+def history():
+    return {"items": store.recent(limit=20)}

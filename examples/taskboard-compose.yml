@@ -1,0 +1,29 @@
+name: taskboard
+services:
+  web:
+    image: node:22
+    ports:
+      - "3000:3000"
+    environment:
+      API_URL: http://api:8000
+    depends_on:
+      - api
+  api:
+    build: ./api
+    ports:
+      - "8000:8000"
+    environment:
+      DB_HOST: db
+      REDIS_HOST: cache
+      JWT_SECRET: super-secret-value
+    depends_on:
+      - db
+      - cache
+  db:
+    image: postgres:16
+  cache:
+    image: redis:7
+  mailer:
+    build: ./mailer
+    environment:
+      DB_HOST: db

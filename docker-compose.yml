@@ -1,0 +1,27 @@
+# LOCAL DEVELOPMENT ONLY — mirrors the managed services ShipMate uses on Zerops
+# (Postgres + Valkey) so you can build the whole app locally now and deploy to
+# Zerops later. The app reads DB_HOST / CACHE_HOST from env, so switching between
+# local and Zerops is just a change of environment variables — no code changes.
+#
+#   docker compose up -d        # start postgres + valkey locally
+#   (then run the API and worker with the env in .env.example)
+#
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: shipmate
+      POSTGRES_USER: shipmate
+      POSTGRES_PASSWORD: shipmate
+    ports:
+      - "5432:5432"
+    volumes:
+      - shipmate_pg:/var/lib/postgresql/data
+
+  cache:
+    image: valkey/valkey:7
+    ports:
+      - "6379:6379"
+
+volumes:
+  shipmate_pg:

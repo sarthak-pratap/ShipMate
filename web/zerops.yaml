@@ -1,0 +1,17 @@
+# ShipMate web (React + Vite) — Zerops build/run config.
+# Built to static assets and served from the `static` service type.
+zerops:
+  - setup: web
+    build:
+      base: nodejs@22
+      buildCommands:
+        - npm ci
+        - npm run build
+      # Vite outputs to dist/ — ship only that
+      deployFiles: dist/~
+      cache: node_modules
+      envVariables:
+        # baked in at build time; point at the api service's public URL
+        VITE_API_BASE: ${VITE_API_BASE}
+    run:
+      base: static
