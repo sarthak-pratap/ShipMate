@@ -52,7 +52,23 @@ def generate(req: GenerateRequest):
                 return GenerateResponse(error=str(e))
         topo = detect_from_filelist(files, name, contents)
     elif req.mode == "prompt":
-        topo = llm.topology_from_prompt(req.prompt or "")
+        from .core.prompt_heuristic import topology_from_prompt_offline
+        text = (req.prompt or "").strip()
+        if not text:
+            return GenerateResponse(error="Describe your app first, then hit generate.")
+        if llm.available():
+            try:
+                topo = llm.topology_from_prompt(text)
+            except Exception as e:  # noqa: BLE001 — never 500; fall back to keywords
+                topo = topology_from_prompt_offline(text)
+                topo.warnings.insert(0, f"LLM call failed ({e}); generated offline from keywords.")
+        else:
+            topo = topology_from_prompt_offline(text)
+            topo.warnings.insert(
+                0,
+                "No Azure OpenAI configured — generated offline from keywords. "
+                "Set AZURE_OPENAI_* for LLM-quality results.",
+            )
     else:
         return GenerateResponse(error=f"unknown mode '{req.mode}'")
 
