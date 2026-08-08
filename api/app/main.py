@@ -38,6 +38,17 @@ def health():
     return {"status": "ok", "linter_rules": rule_count(), "llm_ready": llm.available()}
 
 
+@app.get("/api/debug-net")
+def debug_net():
+    import socket
+    out = {"proxies": {k: bool(os.getenv(k)) for k in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "NO_PROXY")}}
+    try:
+        out["dns"] = [i[4][0] for i in socket.getaddrinfo("shimate-resource.services.ai.azure.com", 443)][:3]
+    except Exception as e:
+        out["dns_error"] = repr(e)
+    return out
+
+
 @app.post("/api/generate", response_model=GenerateResponse)
 def generate(req: GenerateRequest):
     enh_contents: dict = {}   # manifests captured for the optional AI-enhance pass
