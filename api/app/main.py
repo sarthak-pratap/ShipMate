@@ -80,6 +80,7 @@ def generate(req: GenerateRequest):
         if llm.available():
             try:
                 summary = _repo_summary(req.compose, enh_contents, req.repo_url, topo)
+                print(f"=== LLM ENHANCE CALL === Endpoint: {os.getenv('AZURE_OPENAI_ENDPOINT')!r}", flush=True)
                 data = llm.enhance_topology(topo, summary)
                 notes = llm.apply_enhancement(topo, data)
                 topo.warnings.extend(notes or ["AI enhance: no gaps found."])
