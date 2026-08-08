@@ -108,3 +108,31 @@ def test_monorepo_backend_frontend():
     assert names["web"].role == "frontend"
     assert "db" in names                               # sqlmodel -> postgres
     assert "api" in names["web"].depends_on            # frontend wired to api
+
+
+def test_infra_only_compose_merges_with_code():
+    # a repo whose root compose is only local-dev infra (db + cache),
+    # with the real app split across api/ and web/ dirs
+    files = [
+        "docker-compose.yml",
+        "api/requirements.txt", "api/app/main.py",
+        "web/package.json", "web/src/main.jsx",
+    ]
+    contents = {
+        "docker-compose.yml": (
+            "services:\n"
+            "  db:\n    image: postgres:16\n"
+            "  cache:\n    image: redis:7\n"
+        ),
+        "api/requirements.txt": "fastapi\nuvicorn\n",
+        "web/package.json": '{"scripts":{"build":"vite build"},"devDependencies":{"vite":"^5"}}',
+    }
+    topo = detect_from_filelist(files, "shipmate", contents)
+    names = {s.hostname: s for s in topo.services}
+    # app services from code + managed services from the infra compose
+    assert {"api", "web", "db", "cache"} <= set(names)
+    assert names["api"].base.startswith("python")
+    assert names["web"].role == "frontend"
+    # no duplicate db/cache, and api wired to them
+    assert sum(1 for s in topo.services if s.role == "database") == 1
+    assert "db" in names["api"].depends_on and "cache" in names["api"].depends_on

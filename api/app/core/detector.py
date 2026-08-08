@@ -69,18 +69,26 @@ def detect_from_filelist(
 ) -> Topology:
     contents = _Contents(file_contents or {})
 
-    # --- 1. docker-compose at the root? that's the source of truth
+    # --- 1. root docker-compose?
+    #   • has app/runtime services -> it's the whole story, use it
+    #   • only managed services (db/cache/... local-dev infra) -> remember them,
+    #     but keep detecting the real app from the code and merge later
+    infra_managed = []  # managed services from an "infra-only" compose
     for f in files:
         base = f.rsplit("/", 1)[-1].lower()
         if base in ("docker-compose.yml", "docker-compose.yaml",
                     "compose.yml", "compose.yaml") and f.count("/") == 0:
             text = contents.get(f)
-            if text:
-                from .compose_parser import parse_compose
-                topo = parse_compose(text, project_name)
-                topo.warnings.insert(0, f"Detected {base}; topology derived from it.")
-                _refine_from_service_dockerfiles(topo, contents)
-                return topo
+            if not text:
+                continue
+            from .compose_parser import parse_compose
+            ctopo = parse_compose(text, project_name)
+            _refine_from_service_dockerfiles(ctopo, contents)
+            if ctopo.runtimes():
+                ctopo.warnings.insert(0, f"Detected {base}; topology derived from it.")
+                return ctopo
+            infra_managed = ctopo.managed()  # infra-only; merge after code detection
+            break
 
     # --- 2. locate runtime roots: dirs (incl. repo root "") holding a marker
     roots: Dict[str, str] = {}  # dir -> marker filename
@@ -115,21 +123,43 @@ def detect_from_filelist(
             svc.start = svc.start or "npm run start"
         topo.services.append(svc)
 
-    # --- dependency scan → managed services (shared across the project)
-    blob = contents.blob()
+    # --- merge managed services from an infra-only root compose
     apis = [s for s in topo.services if s.role in (ROLE_API, ROLE_WORKER)]
     attach = apis[0] if apis else (topo.services[0] if topo.services else None)
+    if infra_managed:
+        topo.warnings.append(
+            "Root compose is infra-only; merged its managed services with the app detected from code."
+        )
+        for m in infra_managed:
+            if topo.by_hostname(m.hostname):
+                continue
+            topo.services.append(m)
+            if not attach:
+                continue
+            if m.role == "database":
+                attach.env.setdefault("DB_HOST", m.hostname)
+                attach.depends_on.append(m.hostname)
+            elif m.role == "cache":
+                attach.env.setdefault("CACHE_HOST", m.hostname)
+                attach.depends_on.append(m.hostname)
+            else:
+                attach.depends_on.append(m.hostname)
+
+    # --- dependency scan → managed services (skip roles already present)
+    blob = contents.blob()
+    have = {s.role for s in topo.services}
     if attach:
-        if _mentions(blob, "psycopg", "asyncpg", "postgres", "prisma", "sequelize",
-                     "typeorm", "sqlalchemy", "sqlmodel"):
+        if "database" not in have and _mentions(
+                blob, "psycopg", "asyncpg", "postgres", "prisma", "sequelize",
+                "typeorm", "sqlalchemy", "sqlmodel"):
             topo.services.append(Service(hostname="db", role="database", type="postgresql@16"))
             attach.env.setdefault("DB_HOST", "db")
             attach.depends_on.append("db")
-        if _mentions(blob, "redis", "ioredis", "valkey", "celery"):
+        if "cache" not in have and _mentions(blob, "redis", "ioredis", "valkey", "celery"):
             topo.services.append(Service(hostname="cache", role="cache", type="valkey@7"))
             attach.env.setdefault("CACHE_HOST", "cache")
             attach.depends_on.append("cache")
-        if _mentions(blob, "boto3", "minio", "aws-sdk", "s3client"):
+        if "storage" not in have and _mentions(blob, "boto3", "minio", "aws-sdk", "s3client"):
             topo.services.append(Service(hostname="storage", role="storage", type="object-storage"))
             attach.depends_on.append("storage")
 
