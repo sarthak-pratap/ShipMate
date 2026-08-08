@@ -6,11 +6,13 @@ zerops:
   - setup: api
     build:
       base: python@3.12
+      os: ubuntu
       deployFiles: ./
       addToRunPrepare:
         - requirements.txt
     run:
       base: python@3.12
+      os: ubuntu
       prepareCommands:
         - python3 -m pip install --ignore-installed -r requirements.txt
       ports:
