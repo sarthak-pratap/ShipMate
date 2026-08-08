@@ -158,6 +158,8 @@ def parse_compose(text: str, project_name: str = "my-project") -> Topology:
             start=_default_start(base, role),
             build_commands=_default_build(base),
             build_context=build_ctx,
+            # when a compose service builds from a subdir, its source lives there
+            src_dir=(build_ctx.rsplit("/", 1)[0] if build_ctx and "/" in build_ctx else None),
         )
         topo.services.append(svc)
 

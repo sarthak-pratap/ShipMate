@@ -1,17 +1,18 @@
 # ShipMate API — Zerops build/run config.
-# This is ShipMate's OWN deployment config (and a live example of the exact
-# output the tool generates). Referenced by the `api` service in the project
-# import file at the repo root.
+# Push from THIS directory (cd api && zcli push api) so requirements.txt is at
+# the source root. Python deps install at runtime-prepare (official Zerops
+# pattern) — a build-container pip install never reaches the runtime container.
 zerops:
   - setup: api
     build:
       base: python@3.12
-      buildCommands:
-        - pip install -r requirements.txt
       deployFiles: ./
-      cache: ~/.cache/pip
+      addToRunPrepare:
+        - requirements.txt
     run:
       base: python@3.12
+      prepareCommands:
+        - python3 -m pip install --ignore-installed -r requirements.txt
       ports:
         - port: 8000
           httpSupport: true
@@ -22,7 +23,7 @@ zerops:
         DB_NAME: shipmate
         DB_USER: shipmate
         CACHE_HOST: cache
-        # secrets come from envSecrets on the service, referenced as ${...}
+        # secrets are set on the service in the Zerops GUI and referenced here
         AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT}
         AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
         AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT}

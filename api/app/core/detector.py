@@ -293,6 +293,7 @@ def _detect_service(dir_prefix: str, files: List[str], contents: _Contents,
         build_commands=_build_for(base or "nodejs@22"),
         env=env,
         public=role in (ROLE_FRONTEND, ROLE_API),
+        src_dir=dir_prefix or None,   # monorepo: build/deploy relative to this dir
     )
 
 

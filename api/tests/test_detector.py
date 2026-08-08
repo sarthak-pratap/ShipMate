@@ -155,10 +155,56 @@ def test_frontend_generates_static_not_dev_server():
     doc = _yaml.safe_load(zy)
     web = next(s for s in doc["zerops"] if s["setup"] == "web")
     assert web["run"]["base"] == "static"
-    assert web["build"]["deployFiles"] == "dist/~"
+    # monorepo: build output comes from the service's subdir
+    assert web["build"]["deployFiles"] == "frontend/dist/~"
+    assert web["build"]["buildCommands"][0].startswith("cd frontend")
     imp = _yaml.safe_load(build_import_yaml(topo))
     web_imp = next(s for s in imp["services"] if s["hostname"] == "web")
     assert web_imp["type"] == "static"
+
+
+def test_monorepo_build_context_paths():
+    """Pushing from the repo root must not break: build commands cd into the
+    service dir, deployFiles ships <dir>/~, python deps install at run-prepare
+    with the dir-prefixed requirements path (the bug found in live deploy)."""
+    import yaml as _yaml
+    from app.core.zerops_generator import build_zerops_yaml
+    topo = detect_from_filelist(
+        ["api/requirements.txt", "api/app/main.py", "web/package.json"],
+        "x",
+        {
+            "api/requirements.txt": "fastapi\nuvicorn\n",
+            "web/package.json": '{"scripts":{"build":"vite build"},"devDependencies":{"vite":"^5"}}',
+        },
+    )
+    doc = _yaml.safe_load(build_zerops_yaml(topo))
+    api = next(s for s in doc["zerops"] if s["setup"] == "api")
+    # no bare `pip install -r requirements.txt` in the build container
+    assert "buildCommands" not in api["build"]
+    assert api["build"]["deployFiles"] == "api/~"
+    assert api["build"]["addToRunPrepare"] == ["api/requirements.txt"]
+    assert api["run"]["prepareCommands"] == [
+        "python3 -m pip install --ignore-installed -r api/requirements.txt"
+    ]
+
+
+def test_single_repo_python_uses_official_pattern():
+    """Even single-repo python: deps go through addToRunPrepare + run.prepare
+    (a build-container pip install never reaches the runtime container)."""
+    import yaml as _yaml
+    from app.core.zerops_generator import build_zerops_yaml
+    topo = detect_from_filelist(
+        ["requirements.txt", "app/main.py"],
+        "x",
+        {"requirements.txt": "fastapi\nuvicorn\n"},
+    )
+    doc = _yaml.safe_load(build_zerops_yaml(topo))
+    app = doc["zerops"][0]
+    assert app["build"]["deployFiles"] == "./"
+    assert app["build"]["addToRunPrepare"] == ["requirements.txt"]
+    assert app["run"]["prepareCommands"] == [
+        "python3 -m pip install --ignore-installed -r requirements.txt"
+    ]
 
 
 def test_worker_gets_worker_start_and_no_ports():

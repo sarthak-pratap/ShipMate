@@ -46,6 +46,7 @@ class Service:
     depends_on: List[str] = field(default_factory=list)
     public: bool = False              # exposed to public traffic (subdomain access)
     build_context: Optional[str] = None  # compose `build:` dir, for Dockerfile lookup
+    src_dir: Optional[str] = None        # monorepo: service source subdir ("api", "web")
 
     @property
     def is_runtime(self) -> bool:

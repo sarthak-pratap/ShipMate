@@ -1,17 +1,18 @@
 # ShipMate worker — Zerops build/run config.
-# No public ports: it runs on the private network, pulling jobs from the cache.
+# Push from THIS directory (cd worker && zcli push worker). No public ports:
+# it runs on the private network. Python deps install at runtime-prepare.
 zerops:
   - setup: worker
     build:
       base: python@3.12
-      prepareCommands:
-        - sudo apt-get update && sudo apt-get install -y git
-      buildCommands:
-        - pip install -r requirements.txt
       deployFiles: ./
-      cache: ~/.cache/pip
+      addToRunPrepare:
+        - requirements.txt
     run:
       base: python@3.12
+      prepareCommands:
+        - sudo apt-get update && sudo apt-get install -y git
+        - python3 -m pip install --ignore-installed -r requirements.txt
       start: python worker.py
       envVariables:
         CACHE_HOST: cache

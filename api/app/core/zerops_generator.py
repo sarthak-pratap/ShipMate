@@ -22,6 +22,18 @@ class _IndentDumper(yaml.Dumper):
         return super().increase_indent(flow, False)
 
 
+def _str_representer(dumper, data):
+    """Multiline strings (monorepo `cd dir` build blocks) dump as literal `|`
+    blocks — quoted style would fold the newlines into spaces and break the
+    shell commands."""
+    if "\n" in data:
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data)
+
+
+_IndentDumper.add_representer(str, _str_representer)
+
+
 def _dump(data) -> str:
     return yaml.dump(
         data,
@@ -32,36 +44,74 @@ def _dump(data) -> str:
     )
 
 
+def _cd_commands(src: str, cmds: List[str]) -> List[str]:
+    """Build commands run in /build/source (the repo root as pushed). For a
+    monorepo service, run them inside its subdir via one shell block."""
+    if not src:
+        return list(cmds)
+    return ["\n".join(["cd " + src] + list(cmds))]
+
+
 def build_zerops_yaml(topo: Topology) -> str:
-    """The `zerops:` config — one entry per runtime service."""
+    """The `zerops:` config — one entry per runtime service.
+
+    Monorepo-aware: when a service's source lives in a subdir (src_dir), build
+    commands `cd` into it and deployFiles ships `<dir>/~` (the dir's contents),
+    so pushing from the repo root works. Python deps follow the official Zerops
+    pattern: installed in run.prepareCommands with requirements.txt carried
+    over via build.addToRunPrepare (a build-container pip install would never
+    reach the runtime container).
+    """
     setups: List[Dict] = []
     for svc in topo.runtimes():
-        build_block: Dict = {"base": svc.base}
-        if svc.build_commands:
-            build_block["buildCommands"] = list(svc.build_commands)
-        build_block["deployFiles"] = svc.deploy_files
-        if svc.base and svc.base.startswith("python"):
-            build_block["cache"] = "~/.cache/pip"
-        elif svc.base and svc.base.startswith("nodejs"):
-            build_block["cache"] = "node_modules"
+        src = (svc.src_dir or "").strip("/")
+        p = f"{src}/" if src else ""
+        is_python = bool(svc.base and svc.base.startswith("python"))
+        is_node = bool(svc.base and svc.base.startswith("nodejs"))
 
-        # Frontends: build with node, SERVE STATIC. Never ship a dev server
-        # (`npm run dev`) as the production runtime.
+        build_block: Dict = {"base": svc.base}
+        run_block: Dict
+
+        # Frontends: build with node, SERVE STATIC. Never ship a dev server.
         is_static_frontend = (
-            svc.role == "frontend"
-            and svc.base and svc.base.startswith("nodejs")
-            and not _looks_ssr(svc)
+            svc.role == "frontend" and is_node and not _looks_ssr(svc)
         )
         if is_static_frontend:
-            build_block["deployFiles"] = "dist/~"     # vite/CRA build output
-            run_block: Dict = {"base": "static"}
+            cmds = svc.build_commands or ["npm ci", "npm run build"]
+            build_block["buildCommands"] = _cd_commands(src, cmds)
+            build_block["deployFiles"] = f"{p}dist/~"    # vite/CRA output only
+            build_block["cache"] = f"{p}node_modules"
             if svc.env:
                 build_block["envVariables"] = dict(svc.env)  # baked at build time
+            run_block = {"base": "static"}
+        elif is_python:
+            # official Zerops python pattern: deps install at runtime prepare
+            build_block["deployFiles"] = f"{src}/~" if src else "./"
+            build_block["addToRunPrepare"] = [f"{p}requirements.txt"]
+            run_block = {
+                "base": svc.base,
+                "prepareCommands": [
+                    f"python3 -m pip install --ignore-installed -r {p}requirements.txt"
+                ],
+            }
+            if svc.ports:
+                run_block["ports"] = [
+                    {"port": pt.port, "httpSupport": pt.http_support} for pt in svc.ports
+                ]
+            if svc.start:
+                run_block["start"] = svc.start
+            if svc.env:
+                run_block["envVariables"] = dict(svc.env)
         else:
+            if svc.build_commands:
+                build_block["buildCommands"] = _cd_commands(src, svc.build_commands)
+            build_block["deployFiles"] = f"{src}/~" if src else svc.deploy_files
+            if is_node:
+                build_block["cache"] = f"{p}node_modules"
             run_block = {"base": svc.base}
             if svc.ports:
                 run_block["ports"] = [
-                    {"port": p.port, "httpSupport": p.http_support} for p in svc.ports
+                    {"port": pt.port, "httpSupport": pt.http_support} for pt in svc.ports
                 ]
             if svc.start:
                 run_block["start"] = svc.start
