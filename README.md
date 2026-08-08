@@ -15,6 +15,12 @@ deployment is live proof that the configs it writes actually work.
 
 ---
 
+## Docs
+
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — design: the one-IR idea, the three input modes, how it runs on Zerops (read this to understand the code)
+- [`DEPLOY.md`](DEPLOY.md) — step-by-step Zerops deployment with `zcli`
+- [`AI_DISCLOSURE.md`](AI_DISCLOSURE.md) — AI-usage disclosure (challenge rules)
+
 ## Repo layout
 
 ```
