@@ -138,7 +138,10 @@ export default function App() {
           {err && <div className="err">⚠ {err}</div>}
           {result?.warnings?.length > 0 && (
             <div className="warnings">
-              <b>notes:</b> {result.warnings.join(" · ")}
+              <b>notes — how this was inferred:</b>
+              <ul>
+                {result.warnings.map((w, i) => <li key={i}>{w}</li>)}
+              </ul>
             </div>
           )}
         </section>
