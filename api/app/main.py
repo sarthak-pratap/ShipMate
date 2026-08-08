@@ -10,6 +10,7 @@ The heavy lifting lives in app.core.* — this layer is thin on purpose.
 """
 from __future__ import annotations
 
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
