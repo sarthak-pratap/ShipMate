@@ -53,8 +53,17 @@ export default function Diagram({ graph }) {
   const svgRef = useRef(null);
   const [pos, setPos] = useState({});
   const [view, setView] = useState({ x: 0, y: 0, w: 800, h: 480 });
+  const [expanded, setExpanded] = useState(false);
   const base = useMemo(() => (graph ? layout(graph.nodes) : null), [graph]);
   const drag = useRef(null); // {type:'node'|'pan', id?, ...}
+
+  // close fullscreen with Escape
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e) => e.key === "Escape" && setExpanded(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [expanded]);
 
   // (re)initialise positions + view whenever the graph changes
   useEffect(() => {
@@ -122,11 +131,14 @@ export default function Diagram({ graph }) {
   const cx = (id) => pos[id]?.x + NODE_W / 2;
   const cy = (id) => pos[id]?.y + NODE_H / 2;
 
-  return (
-    <div className="diagram-wrap">
+  const canvas = (
+    <div className={`diagram-wrap${expanded ? " is-expanded" : ""}`}>
       <div className="diagram-controls">
         <button onClick={reset} title="reset view">⤢ reset</button>
-        <span className="diagram-hint">drag · scroll to zoom</span>
+        <button onClick={() => setExpanded((v) => !v)} title={expanded ? "close" : "expand"}>
+          {expanded ? "✕ close" : "⛶ expand"}
+        </button>
+        <span className="diagram-hint">drag · scroll to zoom{expanded ? " · esc to close" : ""}</span>
       </div>
       <svg
         ref={svgRef}
@@ -149,7 +161,7 @@ export default function Diagram({ graph }) {
               x1={cx(e.source)} y1={cy(e.source)}
               x2={cx(e.target)} y2={cy(e.target)}
               stroke="#111"
-              strokeWidth={isPublic ? 2.5 : 2.5}
+              strokeWidth={2.5}
               strokeDasharray={isPublic ? "8 6" : "0"}
             />
           );
@@ -178,6 +190,19 @@ export default function Diagram({ graph }) {
       </svg>
     </div>
   );
+
+  if (expanded) {
+    return (
+      <>
+        {/* keep the inline slot filled so the panel layout doesn't jump */}
+        <div className="diagram-empty">[ topology expanded — press esc or ✕ to return ]</div>
+        <div className="diagram-overlay" onPointerDown={(e) => { if (e.target === e.currentTarget) setExpanded(false); }}>
+          {canvas}
+        </div>
+      </>
+    );
+  }
+  return canvas;
 }
 
 function truncate(s, n) {

@@ -189,6 +189,20 @@ header {
   overflow: hidden;
 }
 .diagram-wrap { width: 100%; height: 100%; position: relative; }
+
+/* fullscreen overlay */
+.diagram-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(17,17,17,0.55);
+  padding: 3vh 3vw;
+  display: flex;
+}
+.diagram-wrap.is-expanded {
+  background: var(--paper);
+  border: var(--border);
+  box-shadow: 10px 10px 0 var(--ink);
+}
+.diagram-controls button:nth-child(2) { background: var(--purple); }
 .diagram {
   width: 100%; height: 100%; display: block;
   touch-action: none; cursor: grab;
