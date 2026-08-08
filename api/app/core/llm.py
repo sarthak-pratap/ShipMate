@@ -69,7 +69,6 @@ def topology_from_prompt(prompt: str) -> Topology:
             {"role": "system", "content": _SYSTEM},
             {"role": "user", "content": prompt},
         ],
-        temperature=0.2,
         response_format={"type": "json_object"},
     )
     raw = resp.choices[0].message.content
@@ -168,6 +167,7 @@ def enhance_topology(topo: "Topology", repo_summary: str) -> dict:
             {"role": "user", "content": user},
         ],
         temperature=0.1,
+        extra_body={"reasoning_effort": "none"},
         response_format={"type": "json_object"},
     )
     return json.loads(resp.choices[0].message.content)

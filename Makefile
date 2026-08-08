@@ -12,7 +12,7 @@ infra:
 	docker compose up -d
 
 api:
-	cd api && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+	cd api && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 --env-file ../.env
 
 worker:
 	cd worker && python worker.py
