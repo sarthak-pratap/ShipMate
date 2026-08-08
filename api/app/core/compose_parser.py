@@ -123,6 +123,19 @@ def parse_compose(text: str, project_name: str = "my-project") -> Topology:
         ports = _parse_ports(cfg.get("ports", []))
         env = _rewrite_localhost(_norm_env(cfg.get("environment")), hostnames)
 
+        build_ctx = None  # normalized path to the service's Dockerfile
+        if has_build:
+            b = cfg.get("build")
+            if isinstance(b, str):
+                ctx, dfile = b, "Dockerfile"
+            else:
+                ctx = (b or {}).get("context", ".")
+                dfile = (b or {}).get("dockerfile", "Dockerfile")
+            import posixpath
+            build_ctx = posixpath.normpath(
+                posixpath.join(ctx.lstrip("./") or ".", dfile)
+            ).lstrip("./") or None
+
         svc = Service(
             hostname=name,
             role=role,
@@ -134,6 +147,7 @@ def parse_compose(text: str, project_name: str = "my-project") -> Topology:
             public=bool(ports) and role in (ROLE_FRONTEND, ROLE_API),
             start=_default_start(base, role),
             build_commands=_default_build(base),
+            build_context=build_ctx,
         )
         topo.services.append(svc)
 

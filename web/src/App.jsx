@@ -20,23 +20,35 @@ services:
   cache:
     image: redis:7`;
 
+const REPO_EXAMPLES = [
+  ["voting app · 6 svc", "https://github.com/dockersamples/example-voting-app"],
+  ["microblog · py+db+cache", "https://github.com/miguelgrinberg/microblog"],
+  ["fastapi template", "https://github.com/fastapi/full-stack-fastapi-template"],
+];
+
+const PROMPT_EXAMPLES = [
+  ["booking app", "a booking app with postgres and a nightly reminder worker"],
+  ["realtime chat", "a realtime chat app with websockets, redis presence and postgres history"],
+  ["rag search", "a document search tool: uploads to object storage, a worker builds embeddings into postgres, api serves queries"],
+];
+
 export default function App() {
   const [mode, setMode] = useState("compose");
   const [compose, setCompose] = useState(SAMPLE_COMPOSE);
-  const [prompt, setPrompt] = useState("a booking app with postgres and a nightly reminder worker");
+  const [prompt, setPrompt] = useState(PROMPT_EXAMPLES[0][1]);
   const [repo, setRepo] = useState("");
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [tab, setTab] = useState("zerops");
 
-  async function run() {
+  async function run(overrides = {}) {
     setBusy(true); setErr(""); setResult(null);
     try {
-      const payload = { mode };
-      if (mode === "compose") payload.compose = compose;
-      if (mode === "prompt") payload.prompt = prompt;
-      if (mode === "repo") payload.repo_url = repo.trim();
+      const payload = { mode, ...overrides };
+      if (payload.mode === "compose" && !payload.compose) payload.compose = compose;
+      if (payload.mode === "prompt" && !payload.prompt) payload.prompt = prompt;
+      if (payload.mode === "repo" && !payload.repo_url) payload.repo_url = repo.trim();
       const data = await generate(payload);
       if (data.error) throw new Error(data.error);
       setResult(data);
@@ -48,6 +60,8 @@ export default function App() {
     }
   }
 
+  function runRepoExample(url) { setRepo(url); run({ mode: "repo", repo_url: url }); }
+
   function copy(text) { navigator.clipboard?.writeText(text); }
   function download(name, text) {
     const blob = new Blob([text], { type: "text/yaml" });
@@ -55,54 +69,70 @@ export default function App() {
     a.href = URL.createObjectURL(blob); a.download = name; a.click();
   }
 
-  const inputLabel =
-    mode === "compose" ? "paste docker-compose.yml"
-    : mode === "prompt" ? "describe your app"
-    : "public github repo url";
+  const activeText = tab === "zerops" ? result?.zerops_yaml : result?.import_yaml;
+  const activeFilename = tab === "zerops" ? "zerops.yaml" : "zerops-project-import.yml";
 
   return (
     <div className="app">
       <header>
         <div className="logo">Ship<span>Mate</span></div>
-        <div className="tagline">describe an app → validated zerops.yaml + architecture map</div>
+        <div className="tagline">app in → zerops.yaml + architecture map out</div>
         <div className="badge-row">
           <span className="badge">deploys on zerops</span>
           <span className="badge alt">misconfig linter inside</span>
         </div>
       </header>
 
-      <div className="modes">
-        {[
-          ["compose", "docker-compose"],
-          ["prompt", "prompt"],
-          ["repo", "repo url"],
-        ].map(([m, label]) => (
-          <button key={m} className={mode === m ? "on" : ""} onClick={() => setMode(m)}>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid">
+      <div className="workbench">
+        {/* ---------- input rail ---------- */}
         <section className="input">
-          <span className="panel-label">{inputLabel}</span>
+          <div className="modes">
+            {[["compose", "docker-compose"], ["prompt", "prompt"], ["repo", "repo url"]].map(([m, label]) => (
+              <button key={m} className={mode === m ? "on" : ""}
+                      onClick={() => { setMode(m); setErr(""); }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
           {mode === "compose" && (
-            <textarea value={compose} onChange={(e) => setCompose(e.target.value)} spellCheck={false} />
-          )}
-          {mode === "prompt" && (
-            <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} spellCheck={false} />
-          )}
-          {mode === "repo" && (
             <>
-              <input className="repo" value={repo} placeholder="https://github.com/you/project"
-                     onChange={(e) => setRepo(e.target.value)}
-                     onKeyDown={(e) => e.key === "Enter" && run()} />
-              <div className="hint">
-                public repos only · reads Dockerfile, package.json, requirements.txt, docker-compose & more
+              <span className="panel-label">paste docker-compose.yml</span>
+              <textarea value={compose} onChange={(e) => setCompose(e.target.value)} spellCheck={false} />
+            </>
+          )}
+
+          {mode === "prompt" && (
+            <>
+              <span className="panel-label">describe your app</span>
+              <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} spellCheck={false} />
+              <div className="examples">
+                {PROMPT_EXAMPLES.map(([label, p]) => (
+                  <button key={label} onClick={() => setPrompt(p)}>{label}</button>
+                ))}
               </div>
             </>
           )}
-          <button className="go" onClick={run} disabled={busy}>
+
+          {mode === "repo" && (
+            <>
+              <span className="panel-label">public github repo url</span>
+              <input className="repo" value={repo} placeholder="https://github.com/you/project"
+                     onChange={(e) => setRepo(e.target.value)}
+                     onKeyDown={(e) => e.key === "Enter" && run()} />
+              <div className="examples">
+                {REPO_EXAMPLES.map(([label, url]) => (
+                  <button key={url} onClick={() => runRepoExample(url)}>{label}</button>
+                ))}
+              </div>
+              <div className="hint">
+                reads docker-compose, Dockerfiles (multi-stage aware), package.json,
+                requirements.txt & more · monorepos supported
+              </div>
+            </>
+          )}
+
+          <button className="go" onClick={() => run()} disabled={busy}>
             {busy ? "working…" : "generate →"}
           </button>
           {err && <div className="err">⚠ {err}</div>}
@@ -113,63 +143,59 @@ export default function App() {
           )}
         </section>
 
+        {/* ---------- output panel ---------- */}
         <section className="output">
-          <span className="panel-label">
-            {result ? `topology · ${result.project_name}` : "topology"}
-          </span>
-          <Diagram graph={result?.graph} />
-          {result && (
+          <div className="out-head">
+            <span className="panel-label">
+              {result ? `topology · ${result.project_name}` : "topology"}
+            </span>
+          </div>
+
+          {result ? (
             <>
+              <div className="diagram-box">
+                <Diagram graph={result.graph} />
+              </div>
+
               <div className="tabs">
                 <button className={tab === "zerops" ? "on" : ""} onClick={() => setTab("zerops")}>zerops.yaml</button>
                 <button className={tab === "import" ? "on" : ""} onClick={() => setTab("import")}>project-import</button>
                 <button className={tab === "lint" ? "on" : ""} onClick={() => setTab("lint")}>
                   lint{result.lint?.length ? ` [${result.lint.length}]` : ""}
                 </button>
+                {tab !== "lint" && (
+                  <div className="tab-actions">
+                    <button onClick={() => copy(activeText)}>copy</button>
+                    <button onClick={() => download(activeFilename, activeText)}>download</button>
+                  </div>
+                )}
               </div>
 
-              {tab === "zerops" && (
-                <Code text={result.zerops_yaml} onCopy={copy}
-                      onDownload={() => download("zerops.yaml", result.zerops_yaml)} />
-              )}
-              {tab === "import" && (
-                <Code text={result.import_yaml} onCopy={copy}
-                      onDownload={() => download("zerops-project-import.yml", result.import_yaml)} />
-              )}
-              {tab === "lint" && (
-                <div className="lint">
-                  {(!result.lint || !result.lint.length) && <div className="clean">✓ CLEAN — no issues found</div>}
-                  {result.lint?.map((f, i) => (
-                    <div className="finding" key={i}>
-                      <span className={`sev ${f.severity}`}>{f.severity}</span>
-                      <div>
-                        <div className="msg">{f.message}</div>
-                        <div className="fix">→ {f.fix}</div>
+              <div className="result-area">
+                {tab !== "lint" && <pre className="code">{activeText}</pre>}
+                {tab === "lint" && (
+                  <div className="lint">
+                    {(!result.lint || !result.lint.length) && <div className="clean">✓ CLEAN — no issues found</div>}
+                    {result.lint?.map((f, i) => (
+                      <div className="finding" key={i}>
+                        <span className={`sev ${f.severity}`}>{f.severity}</span>
+                        <div>
+                          <div className="msg">{f.message}</div>
+                          <div className="fix">→ {f.fix}</div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </>
+          ) : (
+            <div className="diagram-empty">
+              {busy ? "[ analysing… ]" : "[ pick a mode, hit generate — topology + yaml render here ]"}
+            </div>
           )}
         </section>
       </div>
-
-      <div className="foot">
-        <span>SHIPMATE · built for THE ZEROPS CHALLENGE · runs on zerops</span>
-      </div>
-    </div>
-  );
-}
-
-function Code({ text, onCopy, onDownload }) {
-  return (
-    <div className="code-wrap">
-      <div className="code-actions">
-        <button onClick={() => onCopy(text)}>copy</button>
-        <button onClick={onDownload}>download</button>
-      </div>
-      <pre className="code">{text}</pre>
     </div>
   );
 }

@@ -20,8 +20,8 @@ from typing import Dict, List, Tuple
 MANIFESTS = {
     "package.json", "requirements.txt", "pyproject.toml", "go.mod",
     "composer.json", "gemfile", "pom.xml", "cargo.toml", "dockerfile",
-    "docker-compose.yml", "docker-compose.yaml", "procfile",
-    "fly.toml", "render.yaml", ".env.example",
+    "docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml",
+    "procfile", "fly.toml", "render.yaml", ".env.example",
 }
 
 _GH_RE = re.compile(
@@ -77,7 +77,7 @@ def fetch_github(url: str) -> Tuple[List[str], Dict[str, str]]:
         (p for p in files if p.rsplit("/", 1)[-1].lower() in MANIFESTS),
         key=lambda p: p.count("/"),
     )
-    for path in candidates[:12]:  # cap the fetches; keyed by full path
+    for path in candidates[:20]:  # cap the fetches; keyed by full path
         try:
             raw = _get(
                 f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"

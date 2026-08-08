@@ -23,7 +23,10 @@ from typing import Dict, List, Optional
 from .mappings import DETECT_FILES, match_runtime
 from .schema import ROLE_API, ROLE_FRONTEND, ROLE_WORKER, Port, Service, Topology
 
-_FROM_RE = re.compile(r"^\s*FROM\s+([^\s]+)", re.IGNORECASE | re.MULTILINE)
+_FROM_RE = re.compile(
+    r"^\s*FROM\s+(?:--platform=\S+\s+)?([^\s]+)(?:\s+[Aa][Ss]\s+([^\s]+))?",
+    re.IGNORECASE | re.MULTILINE,
+)
 _EXPOSE_RE = re.compile(r"^\s*EXPOSE\s+(\d+)", re.IGNORECASE | re.MULTILINE)
 _CMD_RE = re.compile(r"^\s*(?:CMD|ENTRYPOINT)\s+(.+)$", re.IGNORECASE | re.MULTILINE)
 _ENV_RE = re.compile(r"^\s*ENV\s+(.+)$", re.IGNORECASE | re.MULTILINE)
@@ -66,15 +69,17 @@ def detect_from_filelist(
 ) -> Topology:
     contents = _Contents(file_contents or {})
 
-    # --- 1. docker-compose anywhere near the root? that's the source of truth
+    # --- 1. docker-compose at the root? that's the source of truth
     for f in files:
         base = f.rsplit("/", 1)[-1].lower()
-        if base in ("docker-compose.yml", "docker-compose.yaml") and f.count("/") == 0:
+        if base in ("docker-compose.yml", "docker-compose.yaml",
+                    "compose.yml", "compose.yaml") and f.count("/") == 0:
             text = contents.get(f)
             if text:
                 from .compose_parser import parse_compose
                 topo = parse_compose(text, project_name)
-                topo.warnings.insert(0, "Detected docker-compose.yml; topology derived from it.")
+                topo.warnings.insert(0, f"Detected {base}; topology derived from it.")
+                _refine_from_service_dockerfiles(topo, contents)
                 return topo
 
     # --- 2. locate runtime roots: dirs (incl. repo root "") holding a marker
@@ -129,6 +134,41 @@ def detect_from_filelist(
             attach.depends_on.append("storage")
 
     return topo
+
+
+def _refine_from_service_dockerfiles(topo: Topology, contents: _Contents) -> None:
+    """Compose services that `build:` a directory get their base/port/start
+    corrected from that directory's Dockerfile (compose alone can't know)."""
+    for svc in topo.runtimes():
+        ctx = svc.build_context  # normalized Dockerfile path from the compose file
+        if not ctx:
+            continue
+        df_text = contents.get(ctx)
+        if not df_text:
+            continue
+        df = _parse_dockerfile(df_text)
+        if df["base"]:
+            svc.base = svc.type = df["base"]
+            svc.build_commands = _build_for(df["base"])
+            if not df["start"]:
+                svc.start = _default_start_for(df["base"])
+        if df["start"]:
+            svc.start = df["start"]
+        if df["port"] and not svc.ports:
+            svc.ports = [Port(port=df["port"], http_support=True)]
+        for k, v in df["env"].items():
+            svc.env.setdefault(k, v)
+        topo.warnings.append(f"'{svc.hostname}': refined from {ctx}.")
+
+
+def _default_start_for(base: str) -> Optional[str]:
+    if base.startswith("python"):
+        return "uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    if base.startswith("nodejs"):
+        return "npm run start"
+    if base.startswith("go"):
+        return "./app"
+    return None
 
 
 def _detect_service(dir_prefix: str, files: List[str], contents: _Contents,
@@ -208,9 +248,16 @@ def _parse_dockerfile(text: str) -> Dict:
     """Extract base, port, start command and ENV vars from a Dockerfile."""
     out: Dict = {"base": None, "port": None, "start": None, "env": {}}
 
-    froms = _FROM_RE.findall(text)
-    if froms:
-        image = froms[-1].lower()  # last stage wins in multi-stage builds
+    stages = _FROM_RE.findall(text)
+    if stages:
+        # resolve the final stage through `FROM <img> AS <alias>` chains
+        aliases = {alias.lower(): img for img, alias in stages if alias}
+        image, seen = stages[-1][0], set()
+        while image.lower() in aliases and image.lower() not in seen:
+            seen.add(image.lower())
+            image = aliases[image.lower()]
+        image = image.lower()
+
         pyv = _PY_VER_RE.search(image)
         nodev = _NODE_VER_RE.search(image)
         if pyv:
@@ -219,7 +266,7 @@ def _parse_dockerfile(text: str) -> Dict:
             out["base"] = f"nodejs@{nodev.group(1)}"
         else:
             rt = match_runtime(image.split(" ")[0])
-            out["base"] = rt[0] if rt else None
+            out["base"] = rt[0] if rt else _image_keyword_base(image)
 
     expose = _EXPOSE_RE.search(text)
     if expose:
@@ -234,6 +281,19 @@ def _parse_dockerfile(text: str) -> Dict:
             out["env"][pair[0]] = pair[1]
 
     return out
+
+
+def _image_keyword_base(image: str) -> Optional[str]:
+    """Last-resort mapping for registry-prefixed images (mcr, gcr, ghcr...)."""
+    for kw, base in (
+        ("dotnet", "dotnet@8"), ("aspnet", "dotnet@8"),
+        ("python", "python@3.12"), ("node", "nodejs@22"),
+        ("golang", "go@1"), ("temurin", "java@21"), ("openjdk", "java@21"),
+        ("php", "php@8.3"), ("ruby", "ruby@3.3"), ("rust", "rust@1"),
+    ):
+        if kw in image:
+            return base
+    return None
 
 
 def _cmd_to_start(raw: str) -> str:

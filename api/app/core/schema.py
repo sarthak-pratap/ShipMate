@@ -45,6 +45,7 @@ class Service:
     # graph wiring
     depends_on: List[str] = field(default_factory=list)
     public: bool = False              # exposed to public traffic (subdomain access)
+    build_context: Optional[str] = None  # compose `build:` dir, for Dockerfile lookup
 
     @property
     def is_runtime(self) -> bool:
