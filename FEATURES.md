@@ -148,6 +148,8 @@ A misconfig linter with fix hints. Rules:
 | localhost-ref | warning | env pointing at `localhost`/`127.0.0.1` instead of a private hostname |
 | no-subdomain | warning | service exposes ports but isn't publicly reachable |
 | hardcoded-secret | warning | literal secret values in env (should be `envSecrets` / `${VAR}`) |
+| self-ref-env | warning | `VAR: ${VAR}` self-reference — Zerops stores the literal placeholder (the bug that broke a live deploy) |
+| unresolved-env-interp | warning | env value with an unresolved `${...}` interpolation |
 | deployfiles-output | info | build step present but `deployFiles: ./` ships everything |
 | db-non-ha | info | single-container database in what looks like production |
 
@@ -263,10 +265,13 @@ in fallback mode.
   (`FROM ${BASE}`) fall back to language markers.
 - `compose` mode renders exactly the file you paste — if your compose is
   local-dev infra only, use repo mode for the full app picture.
-- **Compose env interpolation is copied verbatim.** Values like
-  `SECRET_KEY: ${SECRET_KEY?Variable not set}` from a source compose are passed
-  through as-is. On Zerops a `VAR: ${VAR}` self-reference stores the literal
-  placeholder — remove these and set real values as GUI secrets before
-  deploying. See [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md#known-limitation-shipmate-surfaces-compose-env-interpolation).
+- **Compose env interpolation is handled automatically.** Values like
+  `SECRET_KEY: ${SECRET_KEY?Variable not set}` from a source compose would be
+  self-references on Zerops (storing the literal placeholder). ShipMate now
+  **drops unresolvable `${...}` values and flags them in the notes** (keeping
+  `${VAR:-default}` defaults and cross-service literals like `POSTGRES_SERVER:
+  db`), and the linter's `self-ref-env` rule catches any that slip through. Set
+  the dropped vars as GUI env/secrets. See
+  [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md#known-limitation-shipmate-surfaces-compose-env-interpolation).
 - Generated configs are a **strong starting point** validated against the
   Zerops docs and real deploys — always review the notes before shipping.

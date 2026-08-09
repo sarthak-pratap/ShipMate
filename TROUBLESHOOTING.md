@@ -142,21 +142,22 @@ envVariables:
 
 **This is exactly the #9 footgun repeated across a whole service.** On Zerops,
 `SECRET_KEY: ${SECRET_KEY?...}` is a self-reference: there's no outer shell
-substituting these, so Zerops stores the literal placeholder (or errors on the
-`?Variable not set` guard). **Before deploying such a config:**
+substituting these, so Zerops would store the literal placeholder.
 
-1. **Remove** any `VAR: ${VAR...}` self-references from the generated
-   `zerops.yaml`.
-2. **Set the real values as GUI env vars / secrets** on the service — Zerops
-   injects them into the runtime automatically.
-3. Keep only genuine cross-service references (e.g. `POSTGRES_SERVER: db`,
-   pointing at another service's hostname) — those are correct.
+**ShipMate now handles this automatically.** The compose parser:
 
-Treat ShipMate's output as a **strong, review-then-ship starting point**: the
-build/run structure, service types, ports and wiring are correct; env values
-copied from a source compose are the one place to eyeball before `zcli push`.
-*(A future linter rule — "self-referencing env var" — will flag these
-automatically.)*
+1. **Drops** unresolvable `${VAR}` / `${VAR?required}` values and **lists them
+   in the notes** ("dropped 16 env var(s) with unresolvable ${...} …").
+2. **Keeps `${VAR:-default}` defaults** (uses the default value) and genuine
+   cross-service references (e.g. `POSTGRES_SERVER: db`).
+3. The linter's **`self-ref-env`** rule flags any self-reference that reaches a
+   topology through another path.
+
+So the generated `zerops.yaml` is deploy-clean. Your one remaining step: **set
+the dropped vars as GUI env vars / secrets** on the service — Zerops injects
+them into the runtime automatically. Treat ShipMate's output as a
+**review-then-ship starting point**: structure, types, ports and wiring are
+correct; the dropped-secret note tells you exactly what to add in the GUI.
 
 ---
 

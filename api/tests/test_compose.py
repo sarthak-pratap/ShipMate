@@ -101,3 +101,32 @@ def test_db_port_not_http():
     topo = _topo()
     # postgres has no runtime ports; ensure no http port leaked onto managed svc
     assert topo.by_hostname("db").ports == []
+
+
+def test_env_interpolation_cleaned():
+    """Compose ${VAR} self-refs are dropped; ${VAR:-default} keeps the default;
+    cross-service literals stay. This is the fastapi-template footgun."""
+    compose = """
+services:
+  backend:
+    image: python:3.12
+    ports: ["8000:8000"]
+    environment:
+      SECRET_KEY: ${SECRET_KEY?Variable not set}
+      POSTGRES_SERVER: db
+      TAG: ${TAG-latest}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DSN: postgres://${POSTGRES_USER}@db
+      PLAIN: hello
+  db:
+    image: postgres:16
+"""
+    topo = parse_compose(compose)
+    env = topo.by_hostname("backend").env
+    assert "SECRET_KEY" not in env          # ${VAR?...} dropped
+    assert "DSN" not in env                 # partial interpolation dropped
+    assert env["POSTGRES_SERVER"] == "db"   # cross-service literal kept
+    assert env["TAG"] == "latest"           # default extracted
+    assert env["LOG_LEVEL"] == "info"       # :- default extracted
+    assert env["PLAIN"] == "hello"
+    assert any("dropped" in w and "interpolation" in w for w in topo.warnings)

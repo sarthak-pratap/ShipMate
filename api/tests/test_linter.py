@@ -76,3 +76,16 @@ def test_llm_json_parser_builds_topology():
     assert topo.project_name == "notes-app"
     assert topo.by_hostname("api").public is True
     assert topo.by_hostname("db").is_managed
+
+
+def test_self_referencing_env_flagged():
+    from app.core.linter import lint
+    from app.core.schema import Port, Service, Topology
+    topo = Topology(project_name="x", services=[
+        Service(hostname="api", role="api", type="python@3.12", base="python@3.12",
+                ports=[Port(8000)], public=True, start="uvicorn app:app",
+                env={"AZURE_OPENAI_ENDPOINT": "${AZURE_OPENAI_ENDPOINT}",
+                     "GOOD": "db", "DEFAULTED": "latest"}),
+    ])
+    rules = {f["rule"] for f in lint(topo)}
+    assert "self-ref-env" in rules

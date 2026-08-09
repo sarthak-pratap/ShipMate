@@ -131,7 +131,15 @@ def parse_compose(text: str, project_name: str = "my-project") -> Topology:
 
         role = _guess_runtime_role(name)
         ports = _parse_ports(cfg.get("ports", []))
-        env = _rewrite_localhost(_norm_env(cfg.get("environment")), hostnames)
+        env, dropped = _clean_interpolations(_norm_env(cfg.get("environment")))
+        env = _rewrite_localhost(env, hostnames)
+        if dropped:
+            shown = ", ".join(dropped[:6]) + (", …" if len(dropped) > 6 else "")
+            topo.warnings.append(
+                f"service '{name}': dropped {len(dropped)} env var(s) with unresolvable "
+                f"${{...}} interpolation ({shown}) — set them as env vars/secrets in the "
+                f"Zerops GUI. A 'VAR: ${{VAR}}' mapping would store the literal placeholder."
+            )
 
         build_ctx = None  # normalized path to the service's Dockerfile
         if has_build:
@@ -177,6 +185,41 @@ def _wants_ha(cfg: dict) -> bool:
     dep = cfg.get("deploy", {}) or {}
     replicas = dep.get("replicas")
     return bool(replicas and int(replicas) > 1)
+
+
+# a value that is exactly one ${VAR}, ${VAR:-default}, ${VAR-default} or ${VAR?msg}
+_FULL_INTERP = re.compile(r"^\$\{([A-Za-z_][A-Za-z0-9_]*)(?:(:-|-)(.*)|(\?.*))?\}$")
+
+
+def _clean_interpolations(env: Dict[str, str]):
+    """Compose `environment:` often uses shell interpolation (`${VAR}`,
+    `${VAR:-default}`, `${VAR?required}`). Zerops has no outer shell to expand
+    these, and `VAR: ${VAR}` is a self-reference that stores the literal
+    placeholder (the bug that cost us a live deploy). So:
+
+      - `${VAR:-default}` / `${VAR-default}`  -> keep the default value
+      - `${VAR}` / `${VAR?required}`          -> DROP (must be a GUI env/secret)
+      - text containing `${...}`               -> DROP (can't safely resolve)
+      - plain values & cross-service refs      -> keep unchanged
+
+    Returns (clean_env, dropped_keys).
+    """
+    clean: Dict[str, str] = {}
+    dropped = []
+    for k, v in env.items():
+        s = str(v).strip()
+        m = _FULL_INTERP.match(s)
+        if m:
+            if m.group(2) is not None:      # has a :- / - default
+                clean[k] = m.group(3)
+            else:                            # ${VAR} or ${VAR?msg} -> unresolvable
+                dropped.append(k)
+            continue
+        if "${" in s:                        # partial interpolation in text
+            dropped.append(k)
+            continue
+        clean[k] = str(v)
+    return clean, dropped
 
 
 def _rewrite_localhost(env: Dict[str, str], hostnames: set) -> Dict[str, str]:
