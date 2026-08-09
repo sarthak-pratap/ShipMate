@@ -1,38 +1,17 @@
-# ShipMate — Zerops project import.
-# Creates the project + all five services. Import once, then push each runtime
-# service from its own directory (each has its own zerops.yaml).
-#
-#   zcli project project-import zerops-project-import.yml
-#
-# Secrets (Azure OpenAI) are NOT set here — add them in the Zerops GUI on the
-# api and worker services after import (Environment variables → add secret).
-# ShipMate runs fine without them (prompt mode falls back to the offline parser).
 project:
-  name: shipmate
-
+  name: ShipMate2
 services:
-  # ---- public frontend (React + Vite → static) ----
-  - hostname: web
-    type: static
-    enableSubdomainAccess: true
-
-  # ---- API (Python / FastAPI) ----
-  - hostname: api
-    type: python@3.12
-    enableSubdomainAccess: true
-    minContainers: 1
-
-  # ---- worker (Python; private only, no public subdomain) ----
-  - hostname: worker
-    type: python@3.12
-    minContainers: 1
-
-  # ---- managed Postgres (history / saved configs / shareable links) ----
-  - hostname: db
-    type: postgresql@16
-    mode: NON_HA
-
-  # ---- managed Valkey (cache + job queue) ----
-  - hostname: cache
-    type: valkey@7.2
-    mode: NON_HA
+- hostname: api
+  type: python@3.12
+  enableSubdomainAccess: true
+- hostname: web
+  type: static
+  enableSubdomainAccess: true
+- hostname: worker
+  type: python@3.12
+- hostname: db
+  type: postgresql@16
+  mode: NON_HA
+- hostname: cache
+  type: valkey@7.2
+  mode: NON_HA

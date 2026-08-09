@@ -2,17 +2,19 @@ zerops:
   - setup: api
     build:
       base: python@3.12
+      os: ubuntu
       deployFiles: api/~
       addToRunPrepare:
         - api/requirements.txt
     run:
       base: python@3.12
+      os: ubuntu
       prepareCommands:
         - python3 -m pip install --ignore-installed -r api/requirements.txt
       ports:
         - port: 8000
           httpSupport: true
-      start: "uvicorn app.main:app --host :: --port 8000"
+      start: uvicorn app.main:app --host 0.0.0.0 --port 8000
       envVariables:
         DB_HOST: db
         CACHE_HOST: cache
@@ -31,11 +33,13 @@ zerops:
   - setup: worker
     build:
       base: python@3.12
+      os: ubuntu
       deployFiles: worker/~
       addToRunPrepare:
         - worker/requirements.txt
     run:
       base: python@3.12
+      os: ubuntu
       prepareCommands:
         - python3 -m pip install --ignore-installed -r worker/requirements.txt
       start: python worker.py
