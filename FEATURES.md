@@ -263,5 +263,10 @@ in fallback mode.
   (`FROM ${BASE}`) fall back to language markers.
 - `compose` mode renders exactly the file you paste — if your compose is
   local-dev infra only, use repo mode for the full app picture.
+- **Compose env interpolation is copied verbatim.** Values like
+  `SECRET_KEY: ${SECRET_KEY?Variable not set}` from a source compose are passed
+  through as-is. On Zerops a `VAR: ${VAR}` self-reference stores the literal
+  placeholder — remove these and set real values as GUI secrets before
+  deploying. See [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md#known-limitation-shipmate-surfaces-compose-env-interpolation).
 - Generated configs are a **strong starting point** validated against the
   Zerops docs and real deploys — always review the notes before shipping.

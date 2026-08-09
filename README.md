@@ -74,13 +74,13 @@ flowchart LR
 
 ## Docs
 
-- [`FEATURES.md`](FEATURES.md) — **the complete product reference**: every mode,
-  rule, button, endpoint, fallback and limit
-- [`ARCHITECTURE.md`](ARCHITECTURE.md) — the design in depth: the one-IR idea,
-  detection heuristics, monorepo handling, the linter (read this to understand the code)
-- [`DEPLOY.md`](DEPLOY.md) — step-by-step Zerops deployment with `zcli`
-  (including the subdomain-before-deploy 502 gotcha)
-- [`AI_DISCLOSURE.md`](AI_DISCLOSURE.md) — AI-usage disclosure (challenge rules)
+| Doc | What's inside |
+|---|---|
+| 📘 [**FEATURES.md**](FEATURES.md) | The complete product reference — every mode, rule, button, endpoint, fallback and limit |
+| 🏗️ [**ARCHITECTURE.md**](ARCHITECTURE.md) | The design in depth — the one-IR idea, detection heuristics, monorepo handling, the build-vs-runtime dependency pattern |
+| 🚀 [**DEPLOY.md**](DEPLOY.md) | Step-by-step Zerops deployment with `zcli`, including the subdomain-before-deploy 502 gotcha |
+| 🔧 [**TROUBLESHOOTING.md**](TROUBLESHOOTING.md) | 10 real deploy errors we hit and fixed — and why **ZCP is a debugging tool, not just a builder** |
+| 🤖 [**AI_DISCLOSURE.md**](AI_DISCLOSURE.md) | AI-usage disclosure (challenge rules) |
 
 ## Features
 
