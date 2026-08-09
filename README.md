@@ -13,6 +13,12 @@
 </p>
 
 <p align="center">
+  <b>▶ Live app:</b> <a href="https://web-2b15.prg1.zerops.app">web-2b15.prg1.zerops.app</a>
+  &nbsp;·&nbsp; <b>📖 How it works:</b> <a href="https://web-2b15.prg1.zerops.app/guide.html">/guide.html</a>
+  &nbsp;·&nbsp; <b>📘 User guide:</b> <a href="USER_GUIDE.md">USER_GUIDE.md</a>
+</p>
+
+<p align="center">
   <img src="https://pub.hyperagent.com/api/published/pbf01KZJCDR1R_9CR5WDFAVKYHHQ5N/d24b5ef5-500b-44ee-a92a-cf26079d63b1.jpg" alt="ShipMate UI — topology, deploy-readiness score, and generated zerops.yaml" width="100%" />
 </p>
 
@@ -92,6 +98,7 @@ flowchart LR
 
 | Doc | What's inside |
 |---|---|
+| 📗 [**USER_GUIDE.md**](USER_GUIDE.md) | Step-by-step guide to using ShipMate — every mode, the wizard, and deploying |
 | 📘 [**FEATURES.md**](FEATURES.md) | The complete product reference — every mode, rule, button, endpoint, fallback and limit |
 | 🏗️ [**ARCHITECTURE.md**](ARCHITECTURE.md) | The design in depth — the one-IR idea, detection heuristics, monorepo handling, the build-vs-runtime dependency pattern |
 | 🚀 [**DEPLOY.md**](DEPLOY.md) | Step-by-step Zerops deployment with `zcli`, including the subdomain-before-deploy 502 gotcha |
@@ -111,6 +118,21 @@ flowchart LR
 | **AI gap-fill (optional)** | LLM refines a detected topology — fills *empty* fields and adds missing services only; never overwrites a good detection |
 | **Deploy wizard** | project name, new-vs-existing project, service selection, DB HA mode → deterministic `zcli` script |
 | **Shareable links** | `/?g=<id>` re-opens any generation (Postgres-backed) |
+
+## Using ShipMate (60-second guide)
+
+Open the [live app](https://web-2b15.prg1.zerops.app) — no install needed.
+
+1. **Pick an input mode** and give it your app:
+   - **🐳 docker-compose** — paste a `docker-compose.yml`
+   - **🐙 repo URL** — paste a public GitHub repo (try the example chips)
+   - **💬 prompt** — describe it in plain English ("a booking app with postgres and a nightly worker")
+2. Hit **Generate**. You get a topology diagram, a **deploy-readiness score**, the `zerops.yaml`, and the project-import file. Read the **notes** — they explain every inference.
+3. Check the **lint** tab and fix anything flagged (each finding has a one-line fix).
+4. Click **▲ deploy to zerops** → answer the wizard → **download `deploy.sh`**.
+5. From your repo root: `bash deploy.sh` → your app is live on Zerops. Set any flagged secrets in the Zerops GUI.
+
+Full walkthrough with screenshots: **[USER_GUIDE.md](USER_GUIDE.md)** · or the live **[How-it-works page](https://web-2b15.prg1.zerops.app/guide.html)**.
 
 ## Run it locally
 

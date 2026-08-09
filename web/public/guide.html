@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>How ShipMate works — guide & features</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --paper:#f2efe6; --ink:#111; --yellow:#ffd02f; --pink:#ff6b9d;
+    --green:#2eea8b; --blue:#4d9fff; --orange:#ff8a3d; --purple:#b794ff; --white:#fff;
+    --border:3px solid var(--ink); --shadow:6px 6px 0 var(--ink); --shadow-sm:4px 4px 0 var(--ink);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:"Space Grotesk",system-ui,sans-serif; line-height:1.65;
+    background-image:linear-gradient(rgba(17,17,17,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(17,17,17,.05) 1px,transparent 1px);
+    background-size:32px 32px;
+  }
+  .wrap{max-width:920px;margin:0 auto;padding:40px 22px 80px}
+  a{color:#111;text-decoration:none;border-bottom:2px solid var(--ink)}
+
+  /* top bar */
+  .topbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:28px}
+  .logo{font-family:"Archivo Black";font-size:30px;text-transform:uppercase;letter-spacing:-.02em;border:none}
+  .logo span{background:var(--yellow);border:var(--border);box-shadow:3px 3px 0 var(--ink);padding:0 7px;display:inline-block;transform:rotate(-1.5deg)}
+  .cta{margin-left:auto;display:flex;gap:10px}
+  .btn{font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:13px;text-transform:uppercase;
+    border:var(--border);box-shadow:var(--shadow-sm);padding:9px 14px;background:var(--white);cursor:pointer}
+  .btn.primary{background:var(--yellow)}
+
+  h1{font-family:"Archivo Black";font-size:clamp(34px,6vw,56px);line-height:1.02;letter-spacing:-.02em;margin:8px 0 12px}
+  .lede{font-size:19px;max-width:640px}
+  .tagpill{display:inline-block;font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:14px;
+    background:var(--white);border:var(--border);box-shadow:var(--shadow-sm);padding:8px 14px;margin-top:18px}
+
+  h2{font-family:"Archivo Black";font-size:26px;margin:44px 0 6px;text-transform:uppercase;letter-spacing:-.01em}
+  .kick{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#6b7185;margin-top:40px}
+  p{margin:10px 0}
+
+  .steps{counter-reset:s;margin-top:16px;display:flex;flex-direction:column;gap:14px}
+  .step{background:var(--white);border:var(--border);box-shadow:var(--shadow-sm);padding:18px 20px 18px 62px;position:relative}
+  .step::before{counter-increment:s;content:counter(s);position:absolute;left:-3px;top:-3px;width:46px;height:46px;
+    background:var(--ink);color:var(--yellow);font-family:"Archivo Black";font-size:22px;display:flex;align-items:center;justify-content:center}
+  .step h3{font-size:19px;margin-bottom:4px}
+  .step p{margin:4px 0;font-size:15px}
+
+  .modes{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
+  .mode{border:var(--border);box-shadow:var(--shadow-sm);padding:16px}
+  .mode.m1{background:var(--blue)} .mode.m2{background:var(--yellow)} .mode.m3{background:var(--purple)}
+  .mode h3{font-size:17px;margin-bottom:6px} .mode p{font-size:13.5px;margin:0}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+  .card{background:var(--white);border:var(--border);box-shadow:var(--shadow-sm);padding:14px 16px}
+  .card b{display:block;font-size:15px;margin-bottom:3px}
+  .card span{font-size:13.5px;font-family:"IBM Plex Mono",monospace;color:#333}
+
+  pre{background:var(--ink);color:var(--paper);border:var(--border);padding:16px;overflow-x:auto;
+    font-family:"IBM Plex Mono",monospace;font-size:13px;margin-top:14px}
+  .note{background:var(--orange);border:var(--border);box-shadow:var(--shadow-sm);padding:12px 16px;margin-top:14px;font-family:"IBM Plex Mono",monospace;font-size:13.5px}
+
+  .faq{margin-top:16px;display:flex;flex-direction:column;gap:12px}
+  .faq .q{background:var(--white);border:var(--border);box-shadow:var(--shadow-sm);padding:14px 16px}
+  .faq .q b{font-size:15px} .faq .q p{font-size:14px;margin-top:4px}
+
+  footer{margin-top:56px;border-top:var(--border);padding-top:22px;font-family:"IBM Plex Mono",monospace;font-size:13px;display:flex;gap:16px;flex-wrap:wrap}
+  @media(max-width:720px){.modes,.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="logo">SHIP<span>MATE</span></div>
+    <div class="cta">
+      <a class="btn" href="https://github.com/sarthak-pratap/ShipMate" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a class="btn primary" href="/">Open the app →</a>
+    </div>
+  </div>
+
+  <h1>Describe an app.<br/>Get it deployed.</h1>
+  <p class="lede">ShipMate reads your app — a repo, a docker-compose file, or a plain-English description — designs the cloud architecture, checks it for mistakes, and hands you one command to ship it to Zerops.</p>
+  <div class="tagpill">repo in  →  validated zerops.yaml + architecture map + deploy.sh  →  live URL</div>
+
+  <div class="kick">The problem</div>
+  <h2>Config is the tax</h2>
+  <p>Your code works. Then you spend an afternoon hand-writing YAML — service names, ports, dependencies, secrets — just to get it live. ShipMate removes that step and <b>shows its work</b> (a diagram, a linter, and plain-English notes) so you can trust what it generated.</p>
+
+  <div class="kick">How it works</div>
+  <h2>Five steps to live</h2>
+  <div class="steps">
+    <div class="step"><h3>1 · Give it your app</h3><p>Pick an input mode and paste a compose file, a public GitHub URL, or a description. Optionally tick <b>✨ use AI to fill gaps</b>.</p></div>
+    <div class="step"><h3>2 · Generate</h3><p>Get a topology diagram, a 0–10 deploy-readiness score, the <code>zerops.yaml</code>, the project-import file, and notes explaining every inference.</p></div>
+    <div class="step"><h3>3 · Review the lint</h3><p>The linter flags the mistakes that break first deploys — each with a one-line fix. Aim for a green <b>ship it</b>.</p></div>
+    <div class="step"><h3>4 · Deploy wizard</h3><p>Answer a few questions (project name, new vs existing, which services, DB HA) and <b>download <code>deploy.sh</code></b>.</p></div>
+    <div class="step"><h3>5 · Ship it</h3><p>Run <code>bash deploy.sh</code> from your repo root, set any flagged secrets in the Zerops GUI, and you're live.</p></div>
+  </div>
+
+  <div class="kick">Input modes</div>
+  <h2>Three ways in</h2>
+  <div class="modes">
+    <div class="mode m1"><h3>🐳 docker-compose</h3><p>Paste a compose file. Fully deterministic — services, images, ports and depends_on map straight to Zerops.</p></div>
+    <div class="mode m2"><h3>🐙 repo URL</h3><p>Paste a public GitHub repo. Detects the stack, monorepos, and Dockerfiles. No clone, no setup.</p></div>
+    <div class="mode m3"><h3>💬 prompt</h3><p>Describe the app in plain English. Uses an LLM when configured, a keyword parser when not — always works.</p></div>
+  </div>
+
+  <div class="kick">Deploy</div>
+  <h2>One command, not a paste</h2>
+  <p>The wizard builds a real shell script for your exact situation. Download it and run:</p>
+  <pre># from the root of your app's repo, with zcli logged in
+bash deploy.sh</pre>
+  <div class="note">Don't paste the script line-by-line — the heredocs and <code>zcli</code> prompts break on partial pastes. Download <code>deploy.sh</code> and run it.</div>
+
+  <div class="kick">Everything it does</div>
+  <h2>Feature list</h2>
+  <div class="grid">
+    <div class="card"><b>3 input modes</b><span>compose · repo URL · prompt</span></div>
+    <div class="card"><b>Monorepo-aware</b><span>one service per dir, correct build contexts</span></div>
+    <div class="card"><b>Dockerfile parsing</b><span>FROM / EXPOSE / CMD, multi-stage aware</span></div>
+    <div class="card"><b>Verified service types</b><span>only what Zerops offers; unsupported ones flagged</span></div>
+    <div class="card"><b>Production-correct output</b><span>static frontends, official Python dep pattern</span></div>
+    <div class="card"><b>Interactive diagram</b><span>drag · zoom · pan · fullscreen</span></div>
+    <div class="card"><b>Misconfig linter + score</b><span>fixes for every finding, rolled into 0–10</span></div>
+    <div class="card"><b>AI gap-fill (optional)</b><span>fills blanks only, never overwrites</span></div>
+    <div class="card"><b>Deploy wizard</b><span>question-driven, deterministic deploy.sh</span></div>
+    <div class="card"><b>Shareable links</b><span>reopen any generation by URL</span></div>
+  </div>
+
+  <div class="kick">Good to know</div>
+  <h2>FAQ</h2>
+  <div class="faq">
+    <div class="q"><b>Do I need to install anything to try it?</b><p>No — the app runs in your browser. You only need <code>zcli</code> when you actually deploy.</p></div>
+    <div class="q"><b>Does it need an API key?</b><p>No. Prompt mode and AI gap-fill use one if present, but everything has an offline fallback.</p></div>
+    <div class="q"><b>Private repos?</b><p>Not yet — public GitHub repos only.</p></div>
+    <div class="q"><b>Is the generated config guaranteed perfect?</b><p>It's a strong, review-then-ship starting point — validated against the Zerops docs and real deploys. Read the notes and the lint tab first.</p></div>
+  </div>
+
+  <footer>
+    <a href="/">← Back to the app</a>
+    <a href="https://github.com/sarthak-pratap/ShipMate" target="_blank" rel="noopener noreferrer">Source on GitHub</a>
+    <span>ShipMate · built for The Zerops Challenge · runs on Zerops 🛰️</span>
+  </footer>
+
+</div>
+</body>
+</html>
