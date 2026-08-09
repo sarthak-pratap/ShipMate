@@ -106,7 +106,8 @@ export default function App() {
         <div className="logo">Ship<span>Mate</span></div>
         <div className="tagline">app in → zerops.yaml + architecture map out</div>
         <div className="badge-row">
-          <span className="badge">deploys on zerops</span>
+          <a className="badge guide" href="/guide.html">📖 how it works</a>
+          <a className="badge" href="https://zerops.io" target="_blank" rel="noopener noreferrer">deploys on zerops ↗</a>
           <span className="badge alt">misconfig linter inside</span>
         </div>
       </header>
