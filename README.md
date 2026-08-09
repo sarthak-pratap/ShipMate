@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="assets/banner.svg" alt="ShipMate — app in → zerops.yaml + architecture map out" width="100%" />
+  <img src="https://pub.hyperagent.com/api/published/pbf01KZJCNG5N_WEZG88DR1G8130HC/image.png" alt="ShipMate" height="56" />
 </p>
-
-<h1 align="center">ShipMate 🛰️</h1>
 
 <p align="center"><b>Describe an app → get a validated <code>zerops.yaml</code>, an interactive architecture map, and your exact deploy script.</b></p>
 
