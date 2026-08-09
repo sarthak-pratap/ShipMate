@@ -123,8 +123,9 @@ plain functions registered with a decorator, so adding one is a few lines.
 Current rule set: missing `run.start`, missing/blank ports on a public service,
 `httpSupport` missing on a public port, `localhost` references (should be
 private hostnames), a DB referenced but not declared, public service without
-subdomain access, hard-coded secrets, `deployFiles` shipping too much, and
-NON_HA production databases.
+subdomain access, hard-coded secrets, **self-referencing env vars**
+(`VAR: ${VAR}` — the bug that broke a live deploy), unresolved `${...}`
+interpolation, `deployFiles` shipping too much, and NON_HA production databases.
 
 ## 5. How ShipMate runs on Zerops
 
@@ -165,7 +166,7 @@ the Azure keys are absent.
 
 ## 7. Tests
 
-[`api/tests/`](api/tests) — 42 tests, all offline (`make test`): the compose
+[`api/tests/`](api/tests) — 44 tests, all offline (`make test`): the compose
 parser, the detector (Dockerfile parsing, monorepo handling, build contexts,
 infra-only compose merging), the linter + score, the offline prompt parser, the
 AI-enhancement merge (including its never-overwrite guard), persistence

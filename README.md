@@ -5,6 +5,14 @@
 <p align="center"><b>Describe an app → get a validated <code>zerops.yaml</code>, an interactive architecture map, and your exact deploy script.</b></p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/tests-44%20passing-2eea8b?style=for-the-badge&labelColor=111111" alt="44 tests passing" />
+  <img src="https://img.shields.io/badge/deploys%20on-zerops-7c5cff?style=for-the-badge&labelColor=111111" alt="deploys on Zerops" />
+  <img src="https://img.shields.io/badge/python-3.12-4d9fff?style=for-the-badge&labelColor=111111" alt="Python 3.12" />
+  <img src="https://img.shields.io/badge/node-22-ffd02f?style=for-the-badge&labelColor=111111" alt="Node 22" />
+  <img src="https://img.shields.io/badge/license-MIT-ff6b9d?style=for-the-badge&labelColor=111111" alt="MIT license" />
+</p>
+
+<p align="center">
   <img src="https://pub.hyperagent.com/api/published/pbf01KZJCDR1R_9CR5WDFAVKYHHQ5N/d24b5ef5-500b-44ee-a92a-cf26079d63b1.jpg" alt="ShipMate UI — topology, deploy-readiness score, and generated zerops.yaml" width="100%" />
 </p>
 
@@ -110,7 +118,7 @@ flowchart LR
 # fastest smoke test — no server needed
 cd api && pip install -r requirements.txt
 python shipmate_cli.py compose ../examples/taskboard-compose.yml
-python -m pytest tests/ -q          # 42 tests
+python -m pytest tests/ -q          # 44 tests
 
 # full app
 make infra    # local postgres + valkey via docker compose (optional — in-memory fallback)
@@ -154,20 +162,39 @@ shipmate/
 │   │   ├── deploy_script.py        # the wizard's deterministic script builder
 │   │   └── mappings.py             # verified image/runtime → Zerops type table
 │   ├── shipmate_cli.py         # use the core with no server
-│   ├── tests/                  # 42 tests, all offline
+│   ├── tests/                  # 44 tests, all offline
 │   └── zerops.yaml
 ├── worker/                     # background repo analysis
 └── web/                        # React + Vite, neo-brutalist UI
     └── src/components/         # Diagram.jsx (interactive canvas), DeployWizard.jsx
 ```
 
+## Testing
+
+**44 tests, all offline, run in ~0.1s** (`cd api && python -m pytest tests/ -q`).
+The whole generation core is covered — no live API or network needed to run
+the suite:
+
+| Suite | Covers |
+|---|---|
+| `test_compose.py` | compose → topology, verified managed types, unsupported-image substitution, infra-only merge, **env-interpolation stripping** |
+| `test_detector.py` | Dockerfile parsing (multi-stage), monorepo detection, **monorepo build contexts**, single-repo python pattern, static-frontend output |
+| `test_prompt.py` | offline intent parser, AI-enhancement **never-overwrite** guard, persistence round-trip |
+| `test_linter.py` | misconfig rules incl. the **self-referencing-env** rule, score grades |
+| `test_deploy_script.py` | the deploy wizard's deterministic script builder |
+
+Many are **regression tests distilled from real deploy failures** — every bug
+we hit on Zerops became a locked-in test (see below).
+
 ## Battle-tested, literally
 
-We deploy-tested the generator against real Zerops and it failed **8 times**:
+We deploy-tested the generator against real Zerops and it failed **repeatedly**:
 hallucinated service versions, dev servers in prod, workers cloning the API's
 start command, dropped secrets, wrong build contexts in monorepos, pip installs
-that never reach the runtime container… Every failure became a fix plus a
-regression test. The full story is in the commit history.
+that never reach the runtime container, and a self-referencing env var that
+broke a live deploy. Every failure became a fix **plus a regression test** —
+which is how the suite grew to 44. The full story is in the commit history and
+[`TROUBLESHOOTING.md`](TROUBLESHOOTING.md).
 
 ## Tech
 
