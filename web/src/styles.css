@@ -249,6 +249,12 @@ header {
   display: block; font-style: normal; font-weight: 500; font-size: 10.5px; opacity: 0.75;
 }
 .wizard-note { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: #555; }
+.wizard-hint {
+  font-family: "IBM Plex Mono", monospace; font-size: 12px; line-height: 1.6;
+  background: var(--yellow); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink);
+  padding: 10px 12px;
+}
+.wizard-hint code { background: var(--ink); color: var(--paper); padding: 1px 5px; }
 .wizard-script { max-height: 46vh; overflow: auto; }
 .wizard-actions { display: flex; gap: 10px; align-items: center; }
 .wizard-actions .go { flex: 1; }

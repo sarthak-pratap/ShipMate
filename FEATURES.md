@@ -191,8 +191,10 @@ the command:
 The answers go to the API, which **rebuilds the import YAML and emits an exact
 shell script** — files written via heredocs, the right import command, one
 `zcli push <hostname>` per selected service, and any secrets warnings carried
-along as comments. Pure logic, no LLM, unit-tested. Copy → run from your
-app repo's root.
+along as comments. Pure logic, no LLM, unit-tested. It's a real bash script
+(`#!/usr/bin/env bash`, `set -euo pipefail`) — **⬇ download `deploy.sh`** and
+run `bash deploy.sh` from your app repo's root. (Don't paste it line-by-line:
+the heredocs and `zcli` prompts break on partial pastes — download and run.)
 
 ---
 

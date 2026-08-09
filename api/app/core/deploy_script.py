@@ -73,7 +73,11 @@ def build_deploy_script(payload: Dict, options: Optional[Dict] = None) -> str:
         secrets_block = "\n# ⚠ SECRETS — set these in the Zerops GUI before the app fully works:\n" + \
             "".join(f"#   {n}\n" for n in secret_notes)
 
-    return f"""# ShipMate → Zerops · deterministic deploy script
+    return f"""#!/usr/bin/env bash
+set -euo pipefail
+# ShipMate → Zerops · deterministic deploy script
+# Save this file and run it — DON'T paste it line-by-line:
+#     bash deploy.sh
 # Run from the ROOT of your application's repository (where the source lives),
 # with zcli installed and logged in (zcli login <token>).
 

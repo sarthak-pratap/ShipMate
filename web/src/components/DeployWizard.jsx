@@ -59,6 +59,15 @@ export default function DeployWizard({ result, onClose, onCopied }) {
     onCopied?.();
   }
 
+  function downloadScript() {
+    const blob = new Blob([script], { type: "text/x-shellscript" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "deploy.sh";
+    a.click();
+    onCopied?.();
+  }
+
   return (
     <div className="wizard-overlay" onPointerDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="wizard">
@@ -119,9 +128,14 @@ export default function DeployWizard({ result, onClose, onCopied }) {
           </>
         ) : (
           <>
+            <div className="wizard-hint">
+              Save this as <code>deploy.sh</code> and run <code>bash deploy.sh</code> from your
+              repo root — don't paste it line-by-line (heredocs + prompts break that).
+            </div>
             <pre className="code wizard-script">{script}</pre>
             <div className="wizard-actions">
-              <button className="go" onClick={copyScript}>copy script</button>
+              <button className="go" onClick={downloadScript}>⬇ download deploy.sh</button>
+              <button className="wizard-back" onClick={copyScript}>copy</button>
               <button className="wizard-back" onClick={() => setScript("")}>← change answers</button>
             </div>
           </>
