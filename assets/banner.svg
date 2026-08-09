@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" width="1200" height="340" font-family="Arial Black, Arial, Helvetica, sans-serif">
+  <defs>
+    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse">
+      <path d="M28 0H0V28" fill="none" stroke="#11111114" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <!-- canvas -->
+  <rect width="1200" height="340" fill="#f2efe6"/>
+  <rect width="1200" height="340" fill="url(#grid)"/>
+  <rect x="6" y="6" width="1188" height="328" fill="none" stroke="#111111" stroke-width="4"/>
+
+  <!-- logo: SHIP + [MATE] -->
+  <text x="70" y="150" font-size="92" font-weight="900" fill="#111111" letter-spacing="-3">SHIP</text>
+
+  <!-- MATE block with hard offset shadow, slight rotation -->
+  <g transform="translate(372 78) rotate(-1.5)">
+    <rect x="8" y="8" width="286" height="96" fill="#111111"/>
+    <rect x="0" y="0" width="286" height="96" fill="#ffd02f" stroke="#111111" stroke-width="4"/>
+    <text x="24" y="70" font-size="72" font-weight="900" fill="#111111" letter-spacing="-2">MATE</text>
+  </g>
+
+  <!-- satellite -->
+  <text x="700" y="140" font-size="70">🛰️</text>
+
+  <!-- tagline pill (mono) -->
+  <g font-family="'IBM Plex Mono', Consolas, Menlo, monospace">
+    <rect x="74" y="206" width="720" height="52" fill="#ffffff" stroke="#111111" stroke-width="3"/>
+    <rect x="77" y="209" width="720" height="52" fill="none" stroke="#111111" stroke-width="0"/>
+    <text x="96" y="240" font-size="24" font-weight="700" fill="#111111">app in  →  zerops.yaml + architecture map out</text>
+  </g>
+
+  <!-- role-colored chips (echo the topology palette) -->
+  <g font-family="'IBM Plex Mono', Consolas, Menlo, monospace" font-size="15" font-weight="700" fill="#111111">
+    <g transform="translate(74 282)">
+      <rect x="4" y="4" width="150" height="34" fill="#111"/>
+      <rect width="150" height="34" fill="#2eea8b" stroke="#111" stroke-width="3"/>
+      <text x="16" y="23">DEPLOYS ON ZEROPS</text>
+    </g>
+    <g transform="translate(240 282)">
+      <rect x="4" y="4" width="150" height="34" fill="#111"/>
+      <rect width="150" height="34" fill="#4d9fff" stroke="#111" stroke-width="3"/>
+      <text x="20" y="23">3 INPUT MODES</text>
+    </g>
+    <g transform="translate(406 282)">
+      <rect x="4" y="4" width="176" height="34" fill="#111"/>
+      <rect width="176" height="34" fill="#ff6b9d" stroke="#111" stroke-width="3"/>
+      <text x="14" y="23">MISCONFIG LINTER</text>
+    </g>
+    <g transform="translate(598 282)">
+      <rect x="4" y="4" width="150" height="34" fill="#111"/>
+      <rect width="150" height="34" fill="#b794ff" stroke="#111" stroke-width="3"/>
+      <text x="26" y="23">DEPLOY WIZARD</text>
+    </g>
+  </g>
+
+  <!-- mini topology, right side -->
+  <g transform="translate(880 60)" font-family="'IBM Plex Mono', Consolas, Menlo, monospace" font-size="13" font-weight="700" fill="#111">
+    <line x1="120" y1="40" x2="120" y2="70" stroke="#111" stroke-width="2.5" stroke-dasharray="6 4"/>
+    <line x1="120" y1="118" x2="60" y2="150" stroke="#111" stroke-width="2.5"/>
+    <line x1="120" y1="118" x2="180" y2="150" stroke="#111" stroke-width="2.5"/>
+    <line x1="60" y1="200" x2="120" y2="150" stroke="#111" stroke-width="2.5"/>
+    <line x1="180" y1="200" x2="120" y2="150" stroke="#111" stroke-width="2.5"/>
+
+    <!-- web -->
+    <g transform="translate(70 8)"><rect x="4" y="4" width="100" height="34" fill="#111"/><rect width="100" height="34" fill="#4d9fff" stroke="#111" stroke-width="3"/><text x="34" y="23">web</text></g>
+    <!-- api -->
+    <g transform="translate(70 84)"><rect x="4" y="4" width="100" height="34" fill="#111"/><rect width="100" height="34" fill="#ffd02f" stroke="#111" stroke-width="3"/><text x="36" y="23">api</text></g>
+    <!-- db -->
+    <g transform="translate(10 166)"><rect x="4" y="4" width="100" height="34" fill="#111"/><rect width="100" height="34" fill="#ff8a3d" stroke="#111" stroke-width="3"/><text x="38" y="23">db</text></g>
+    <!-- cache -->
+    <g transform="translate(130 166)"><rect x="4" y="4" width="100" height="34" fill="#111"/><rect width="100" height="34" fill="#ff6b9d" stroke="#111" stroke-width="3"/><text x="28" y="23">cache</text></g>
+  </g>
+</svg>

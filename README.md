@@ -1,7 +1,17 @@
-# ShipMate 🛰️
+<p align="center">
+  <img src="assets/banner.svg" alt="ShipMate — app in → zerops.yaml + architecture map out" width="100%" />
+</p>
 
-**Describe an app → get a validated `zerops.yaml`, an interactive architecture
-map, and your exact deploy script.**
+<h1 align="center">ShipMate 🛰️</h1>
+
+<p align="center"><b>Describe an app → get a validated <code>zerops.yaml</code>, an interactive architecture map, and your exact deploy script.</b></p>
+
+<p align="center">
+  <img src="https://pub.hyperagent.com/api/published/pbf01KZJCDR1R_9CR5WDFAVKYHHQ5N/d24b5ef5-500b-44ee-a92a-cf26079d63b1.jpg" alt="ShipMate UI — topology, deploy-readiness score, and generated zerops.yaml" width="100%" />
+</p>
+
+---
+
 
 A zerops.yaml copilot and architecture visualizer, built for
 **The Zerops Challenge** (Aug 8–9, 2026). Give it a `docker-compose.yml`, a
