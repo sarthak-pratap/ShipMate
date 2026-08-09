@@ -1,0 +1,41 @@
+name: Deploy to Zerops
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-api:
+    name: Deploy API Service
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Deploy API to Zerops
+        run: |
+          npx @zerops/zcli login ${{ secrets.ZEROPS_TOKEN }}
+          cd api && npx @zerops/zcli push api --projectId hzBAOcl0RvijyBvB44aMng
+
+  deploy-web:
+    name: Deploy Web Service
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Deploy Web to Zerops
+        run: |
+          npx @zerops/zcli login ${{ secrets.ZEROPS_TOKEN }}
+          cd web && npx @zerops/zcli push web --projectId hzBAOcl0RvijyBvB44aMng
