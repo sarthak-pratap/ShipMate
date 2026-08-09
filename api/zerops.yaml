@@ -25,7 +25,6 @@ zerops:
         DB_NAME: shipmate
         DB_USER: shipmate
         CACHE_HOST: cache
-        # secrets are set on the service in the Zerops GUI and referenced here
-        AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT}
-        AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
-        AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT}
+        # AZURE_OPENAI_* come from GUI secrets automatically — do NOT map them
+        # here: `VAR: ${VAR}` is a circular reference that overrides the secret
+        # with the literal placeholder string.

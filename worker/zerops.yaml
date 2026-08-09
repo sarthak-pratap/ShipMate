@@ -18,7 +18,7 @@ zerops:
       start: python worker.py
       envVariables:
         CACHE_HOST: cache
+        # AZURE_OPENAI_* come from GUI secrets automatically — do NOT map them
+        # here: `VAR: ${VAR}` is a circular reference that overrides the secret
+        # with the literal placeholder string.
         CACHE_PORT: "6379"
-        AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT}
-        AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
-        AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT}
